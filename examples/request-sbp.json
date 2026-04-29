@@ -1,0 +1,28 @@
+{
+  "requestId": "req-sbp-1",
+  "passengerKey": "pax-2",
+  "transportDate": "2026-04-28",
+  "paymentMethod": "sbp",
+  "validations": [
+    {
+      "validationId": "v1",
+      "eventTime": "2026-04-28T08:00:00+03:00",
+      "status": "accepted",
+      "eventType": "entry",
+      "mode": "metro",
+      "carrier": "metro",
+      "zone": "moscow",
+      "stationId": "belorusskaya"
+    },
+    {
+      "validationId": "v2",
+      "eventTime": "2026-04-28T08:20:00+03:00",
+      "status": "accepted",
+      "eventType": "entry",
+      "mode": "mck",
+      "carrier": "mck",
+      "zone": "moscow",
+      "placeId": "mck-luzhniki"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "requestId": "req-vt-1",
+  "passengerKey": "pax-3",
+  "transportDate": "2026-04-28",
+  "paymentMethod": "virtual_troika",
+  "validations": [
+    {
+      "validationId": "v1",
+      "eventTime": "2026-04-28T08:00:00+03:00",
+      "status": "accepted",
+      "eventType": "onboard",
+      "mode": "mgt",
+      "carrier": "mgt",
+      "zone": "moscow"
+    },
+    {
+      "validationId": "v2",
+      "eventTime": "2026-04-28T08:30:00+03:00",
+      "status": "accepted",
+      "eventType": "onboard",
+      "mode": "mgt",
+      "carrier": "mgt",
+      "zone": "moscow"
+    }
+  ]
+}

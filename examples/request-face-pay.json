@@ -1,0 +1,17 @@
+{
+  "requestId": "req-face-1",
+  "passengerKey": "pax-4",
+  "transportDate": "2026-04-28",
+  "paymentMethod": "face_pay",
+  "validations": [
+    {
+      "validationId": "v1",
+      "eventTime": "2026-04-28T08:00:00+03:00",
+      "status": "accepted",
+      "eventType": "entry",
+      "mode": "metro",
+      "carrier": "metro",
+      "zone": "moscow"
+    }
+  ]
+}

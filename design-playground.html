@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>brgram — дизайн страницы</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#0f1630;
+      --panel2:#101a38;
+      --card:#121d3f;
+      --muted:#94a3b8;
+      --text:#e6eaf2;
+      --line:rgba(255,255,255,.08);
+      --accent:#6d5efc;
+      --accent2:#27e0b3;
+      --danger:#ff4d6d;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+      --radius: 18px;
+      --radius2: 14px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family:var(--sans);
+      background: radial-gradient(1200px 700px at 18% 12%, rgba(109,94,252,.22), transparent 55%),
+                  radial-gradient(900px 600px at 82% 18%, rgba(39,224,179,.14), transparent 60%),
+                  radial-gradient(1200px 900px at 50% 100%, rgba(255,77,109,.10), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+    }
+
+    /* Layout */
+    .app{
+      height:100vh;
+      display:grid;
+      grid-template-columns: 84px 280px 1fr 320px;
+      gap:12px;
+      padding:12px;
+    }
+
+    .pane{
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      backdrop-filter: blur(10px);
+    }
+
+    /* Left: spaces */
+    .spaces{
+      display:flex;
+      flex-direction:column;
+      background: linear-gradient(180deg, rgba(15,22,48,.85), rgba(15,22,48,.65));
+    }
+
+    .brandMark{
+      height:72px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      border-bottom:1px solid var(--line);
+    }
+
+    .logo{
+      width:42px; height:42px;
+      border-radius:14px;
+      background:
+        radial-gradient(18px 18px at 30% 30%, rgba(255,255,255,.35), transparent 60%),
+        linear-gradient(135deg, var(--accent), rgba(39,224,179,.9));
+      box-shadow: 0 10px 22px rgba(109,94,252,.25);
+    }
+    .brandMark span{
+      font-family:var(--mono);
+      font-weight:800;
+      letter-spacing:.6px;
+      color:rgba(255,255,255,.9);
+      font-size:12px;
+    }
+
+    .spaceList{
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    .spaceBtn{
+      width:60px; height:60px;
+      border-radius: 18px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      display:grid;
+      place-items:center;
+      cursor:pointer;
+      position:relative;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+    }
+    .spaceBtn:hover{ transform: translateY(-2px); background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.14); }
+    .spaceBtn.active{
+      background: rgba(109,94,252,.18);
+      border-color: rgba(109,94,252,.35);
+    }
+    .spaceBtn .dot{
+      position:absolute;
+      left:-6px;
+      width:10px; height:22px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, var(--accent), rgba(39,224,179,.9));
+      opacity:0;
+      transform: scaleY(.6);
+      transition: .15s ease;
+    }
+    .spaceBtn.active .dot{ opacity:1; transform: scaleY(1); }
+
+    .spaceIcon{
+      width:28px; height:28px;
+      border-radius: 10px;
+      background: rgba(255,255,255,.10);
+      display:grid;
+      place-items:center;
+      font-weight:800;
+      color: rgba(255,255,255,.9);
+    }
+
+    .spaceFooter{
+      margin-top:auto;
+      padding:10px;
+      border-top:1px solid var(--line);
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    .miniBtn{
+      width:60px; height:44px;
+      border-radius: 16px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      cursor:pointer;
+      color: rgba(255,255,255,.86);
+      font-size:12px;
+      transition: .12s ease;
+    }
+    .miniBtn:hover{ background: rgba(255,255,255,.06); }
+
+    /* Middle: channels */
+    .channels{
+      background: linear-gradient(180deg, rgba(16,26,56,.80), rgba(16,26,56,.60));
+      display:flex;
+      flex-direction:column;
+    }
+
+    .topSearch{
+      padding:12px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .pill{
+      flex:1;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 12px;
+      border-radius: 999px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      color: rgba(255,255,255,.86);
+    }
+    .pill input{
+      width:100%;
+      background: transparent;
+      border:0;
+      outline:0;
+      color: rgba(255,255,255,.9);
+      font-size:14px;
+    }
+    .pill small{ color: var(--muted); font-family:var(--mono); }
+
+    .spaceHeader{
+      padding:10px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .spaceTitle{
+      display:flex; flex-direction:column; gap:2px;
+    }
+    .spaceTitle b{ font-size:14px; }
+    .spaceTitle span{ font-size:12px; color:var(--muted); }
+
+    .quickActions{
+      display:flex; gap:8px;
+    }
+    .iconBtn{
+      width:38px; height:38px;
+      border-radius: 14px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      cursor:pointer;
+      transition:.12s ease;
+      display:grid;
+      place-items:center;
+      color: rgba(255,255,255,.86);
+      font-size:14px;
+    }
+    .iconBtn:hover{ background: rgba(255,255,255,.06); }
+
+    .section{
+      padding: 10px 12px;
+    }
+    .sectionHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:8px;
+      color: rgba(255,255,255,.86);
+    }
+    .sectionHead span{
+      font-size:12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .12em;
+    }
+
+    .channelList{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    .channel{
+      padding:10px 10px;
+      border-radius: 14px;
+      border:1px solid transparent;
+      background: rgba(255,255,255,.02);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      cursor:pointer;
+      transition:.12s ease;
+    }
+    .channel:hover{
+      background: rgba(255,255,255,.05);
+      border-color: rgba(255,255,255,.08);
+    }
+    .channel.active{
+      background: rgba(109,94,252,.16);
+      border-color: rgba(109,94,252,.25);
+    }
+
+    .chLeft{ display:flex; align-items:center; gap:10px; }
+    .tag{
+      width:28px; height:28px;
+      border-radius: 10px;
+      display:grid; place-items:center;
+      background: rgba(255,255,255,.08);
+      font-weight:900;
+      color: rgba(255,255,255,.92);
+      font-family: var(--mono);
+      font-size:12px;
+    }
+    .tag.voice{
+      background: rgba(39,224,179,.14);
+      border:1px solid rgba(39,224,179,.22);
+    }
+
+    .chMeta{ display:flex; flex-direction:column; line-height:1.1; }
+    .chMeta b{ font-size:13px; }
+    .chMeta small{ font-size:12px; color: var(--muted); }
+
+    .badge{
+      min-width: 22px;
+      height: 22px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.10);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:12px;
+      color: rgba(255,255,255,.9);
+      font-family: var(--mono);
+    }
+    .badge.live{
+      background: rgba(39,224,179,.14);
+      border-color: rgba(39,224,179,.22);
+      color: rgba(187,255,240,.95);
+    }
+
+    .profileMini{
+      margin-top:auto;
+      border-top:1px solid var(--line);
+      padding:12px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .avatar{
+      width:42px; height:42px;
+      border-radius: 16px;
+      background:
+        radial-gradient(14px 14px at 35% 35%, rgba(255,255,255,.35), transparent 60%),
+        linear-gradient(135deg, rgba(255,77,109,.75), rgba(109,94,252,.75));
+      border:1px solid rgba(255,255,255,.10);
+    }
+    .me{
+      display:flex; flex-direction:column; gap:2px;
+      flex:1;
+      min-width:0;
+    }
+    .me b{ font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .me span{ font-size:12px; color:var(--muted); }
+    .statusDot{
+      width:10px; height:10px;
+      border-radius: 999px;
+      background: rgba(39,224,179,.9);
+      box-shadow: 0 0 0 4px rgba(39,224,179,.12);
+    }
+
+    /* Chat */
+    .chat{
+      background: linear-gradient(180deg, rgba(15,22,48,.55), rgba(15,22,48,.35));
+      display:flex;
+      flex-direction:column;
+      min-width: 0;
+    }
+
+    .chatTop{
+      padding:12px 14px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .roomInfo{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width:0;
+    }
+    .roomInfo b{
+      font-size:14px;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .roomInfo span{
+      font-size:12px;
+      color: var(--muted);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+
+    .chatActions{ display:flex; gap:8px; }
+
+    .messages{
+      padding:14px;
+      overflow:auto;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    .daySep{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin: 4px 0;
+      color: rgba(255,255,255,.6);
+      font-size:12px;
+    }
+    .daySep:before, .daySep:after{
+      content:"";
+      height:1px;
+      flex:1;
+      background: var(--line);
+    }
+
+    .msg{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+    }
+    .msg .pic{
+      width:40px; height:40px;
+      border-radius: 16px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.08);
+      display:grid;
+      place-items:center;
+      font-weight:900;
+      font-family: var(--mono);
+      color: rgba(255,255,255,.9);
+    }
+    .msgBody{ min-width:0; }
+    .msgHead{
+      display:flex;
+      align-items:baseline;
+      gap:10px;
+      margin-bottom:4px;
+    }
+    .msgHead b{ font-size:13px; }
+    .msgHead time{ font-size:12px; color: var(--muted); }
+    .bubble{
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+      padding:10px 12px;
+      border-radius: 14px;
+      max-width: 820px;
+      line-height: 1.35;
+      color: rgba(255,255,255,.9);
+    }
+
+    .bubble .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius: 999px;
+      background: rgba(109,94,252,.16);
+      border: 1px solid rgba(109,94,252,.26);
+      font-size:12px;
+      color: rgba(230,234,242,.95);
+      margin: 6px 0 0;
+    }
+
+    .callCard{
+      margin-top:8px;
+      background: linear-gradient(135deg, rgba(39,224,179,.12), rgba(109,94,252,.10));
+      border:1px solid rgba(255,255,255,.10);
+      border-radius: 16px;
+      padding:12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .callLeft{
+      display:flex; flex-direction:column; gap:2px;
+    }
+    .callLeft b{ font-size:13px; }
+    .callLeft span{ font-size:12px; color: var(--muted); }
+
+    .btn{
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: rgba(255,255,255,.92);
+      padding:10px 12px;
+      border-radius: 14px;
+      cursor:pointer;
+      transition: .12s ease;
+      font-weight:700;
+      font-size:13px;
+    }
+    .btn:hover{ background: rgba(255,255,255,.10); }
+    .btn.primary{
+      background: linear-gradient(135deg, rgba(109,94,252,.95), rgba(39,224,179,.75));
+      border-color: rgba(255,255,255,.18);
+    }
+    .btn.danger{
+      background: rgba(255,77,109,.14);
+      border-color: rgba(255,77,109,.25);
+      color: rgba(255,210,219,.95);
+    }
+
+    .composer{
+      padding:12px;
+      border-top:1px solid var(--line);
+      display:flex;
+      gap:10px;
+      align-items:center;
+      background: linear-gradient(180deg, rgba(16,26,56,.40), rgba(16,26,56,.65));
+    }
+    .composer .input{
+      flex:1;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:12px 12px;
+      border-radius: 16px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      min-width: 0;
+    }
+    .composer input{
+      width:100%;
+      border:0;
+      outline:0;
+      background: transparent;
+      color: rgba(255,255,255,.92);
+      font-size:14px;
+      min-width:0;
+    }
+    .kbd{
+      font-family: var(--mono);
+      font-size:12px;
+      color: rgba(255,255,255,.75);
+      padding:6px 8px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.18);
+      white-space:nowrap;
+    }
+
+    /* Right: members */
+    .members{
+      background: linear-gradient(180deg, rgba(16,26,56,.78), rgba(16,26,56,.56));
+      display:flex;
+      flex-direction:column;
+      min-width: 0;
+    }
+
+    .membersTop{
+      padding:12px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .membersTop b{ font-size:14px; }
+    .membersTop span{ font-size:12px; color: var(--muted); }
+
+    .memberList{
+      padding:12px;
+      overflow:auto;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    .member{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px;
+      border-radius: 16px;
+      border:1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+    }
+
+    .mLeft{ display:flex; align-items:center; gap:10px; min-width:0; }
+    .mAva{
+      width:36px; height:36px;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.08);
+      display:grid; place-items:center;
+      font-family: var(--mono);
+      font-weight:900;
+      color: rgba(255,255,255,.92);
+    }
+    .mInfo{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+    .mInfo b{ font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .mInfo span{ font-size:12px; color: var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    .pillRole{
+      font-size:12px;
+      color: rgba(255,255,255,.9);
+      padding:6px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.05);
+      white-space:nowrap;
+    }
+    .pillRole.admin{
+      background: rgba(109,94,252,.14);
+      border-color: rgba(109,94,252,.22);
+    }
+    .pillRole.live{
+      background: rgba(39,224,179,.12);
+      border-color: rgba(39,224,179,.20);
+    }
+
+    /* Responsive */
+    @media (max-width: 1180px){
+      .app{ grid-template-columns: 84px 280px 1fr; }
+      .members{ display:none; }
+    }
+    @media (max-width: 860px){
+      .app{ grid-template-columns: 84px 1fr; }
+      .channels{ display:none; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <!-- Spaces -->
+    <aside class="pane spaces">
+      <div class="brandMark">
+        <div class="logo" aria-hidden="true"></div>
+        <span>BRGRAM</span>
+      </div>
+
+      <div class="spaceList">
+        <div class="spaceBtn active" title="brgram Space">
+          <span class="dot" aria-hidden="true"></span>
+          <div class="spaceIcon">bg</div>
+        </div>
+
+        <div class="spaceBtn" title="Команда">
+          <span class="dot" aria-hidden="true"></span>
+          <div class="spaceIcon">TM</div>
+        </div>
+
+        <div class="spaceBtn" title="Игры">
+          <span class="dot" aria-hidden="true"></span>
+          <div class="spaceIcon">GG</div>
+        </div>
+
+        <div class="spaceBtn" title="Музыка">
+          <span class="dot" aria-hidden="true"></span>
+          <div class="spaceIcon">MU</div>
+        </div>
+      </div>
+
+      <div class="spaceFooter">
+        <button class="miniBtn" type="button" title="Создать">
+          <span style="font-weight:900">＋</span>
+          <span>New</span>
+        </button>
+        <button class="miniBtn" type="button" title="Настройки">
+          <span>⚙</span>
+          <span>Set</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Channels -->
+    <section class="pane channels">
+      <div class="topSearch">
+        <div class="pill">
+          <span aria-hidden="true">⌕</span>
+          <input placeholder="Поиск по каналам и людям…" />
+          <small>Ctrl K</small>
+        </div>
+      </div>
+
+      <div class="spaceHeader">
+        <div class="spaceTitle">
+          <b>brgram / Space</b>
+          <span>Голосовые и текстовые каналы</span>
+        </div>
+        <div class="quickActions">
+          <button class="iconBtn" type="button" title="Уведомления">🔔</button>
+          <button class="iconBtn" type="button" title="Пригласить">✉</button>
+          <button class="iconBtn" type="button" title="Настройки">⚙</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="sectionHead">
+          <span>Текст</span>
+          <button class="iconBtn" type="button" title="Добавить канал">＋</button>
+        </div>
+
+        <div class="channelList">
+          <div class="channel active">
+            <div class="chLeft">
+              <div class="tag">#</div>
+              <div class="chMeta">
+                <b>общий</b>
+                <small>Объявления, мемы, обсуждения</small>
+              </div>
+            </div>
+            <div class="badge">12</div>
+          </div>
+
+          <div class="channel">
+            <div class="chLeft">
+              <div class="tag">#</div>
+              <div class="chMeta">
+                <b>новости</b>
+                <small>релизы, апдейты, патчи</small>
+              </div>
+            </div>
+            <div class="badge">3</div>
+          </div>
+
+          <div class="channel">
+            <div class="chLeft">
+              <div class="tag">#</div>
+              <div class="chMeta">
+                <b>помощь</b>
+                <small>вопросы и ответы</small>
+              </div>
+            </div>
+            <div class="badge">1</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="sectionHead">
+          <span>Голос</span>
+          <button class="iconBtn" type="button" title="Добавить канал">＋</button>
+        </div>
+
+        <div class="channelList">
+          <div class="channel">
+            <div class="chLeft">
+              <div class="tag voice">🎙</div>
+              <div class="chMeta">
+                <b>Лобби</b>
+                <small>до 20 участников</small>
+              </div>
+            </div>
+            <div class="badge live">LIVE</div>
+          </div>
+
+          <div class="channel">
+            <div class="chLeft">
+              <div class="tag voice">🎧</div>
+              <div class="chMeta">
+                <b>Играем</b>
+                <small>сквад/рейд/кооп</small>
+              </div>
+            </div>
+            <div class="badge">5</div>
+          </div>
+
+          <div class="channel">
+            <div class="chLeft">
+              <div class="tag voice">🔊</div>
+              <div class="chMeta">
+                <b>Музыка</b>
+                <small>включаем фоном</small>
+              </div>
+            </div>
+            <div class="badge">2</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="profileMini">
+        <div class="avatar" aria-hidden="true"></div>
+        <div class="me">
+          <b>portaligrovoj458</b>
+          <span>online • brgram</span>
+        </div>
+        <div class="statusDot" title="В сети"></div>
+      </div>
+    </section>
+
+    <!-- Chat -->
+    <main class="pane chat">
+      <div class="chatTop">
+        <div class="roomInfo">
+          <b># общий</b>
+          <span>Здесь пишут, шлют голосовые и кидают ссылки на каналы</span>
+        </div>
+        <div class="chatActions">
+          <button class="iconBtn" type="button" title="Закрепы">📌</button>
+          <button class="iconBtn" type="button" title="Звонок">📞</button>
+          <button class="iconBtn" type="button" title="Профиль">👤</button>
+        </div>
+      </div>
+
+      <div class="messages">
+        <div class="daySep">Сегодня</div>
+
+        <div class="msg">
+          <div class="pic">AI</div>
+          <div class="msgBody">
+            <div class="msgHead">
+              <b>brgram Assistant</b>
+              <time>11:02</time>
+            </div>
+            <div class="bubble">
+              Добро пожаловать в <b>brgram</b>! Здесь можно создавать <b>текстовые</b> и <b>голосовые</b> каналы,
+              а ещё — быстро переключаться между пространствами.
+              <div class="chip">✨ /help — команды и горячие клавиши</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="msg">
+          <div class="pic">PP</div>
+          <div class="msgBody">
+            <div class="msgHead">
+              <b>portaligrovoj458</b>
+              <time>11:08</time>
+            </div>
+            <div class="bubble">
+              Сделайте голосовой канал «Лобби» с быстрым входом и списком участников справа.
+              <div class="callCard">
+                <div class="callLeft">
+                  <b>Голосовой: Лобби</b>
+                  <span>5 участников • качество: HD • шумоподавление</span>
+                </div>
+                <button class="btn primary" type="button">Войти</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="msg">
+          <div class="pic">BG</div>
+          <div class="msgBody">
+            <div class="msgHead">
+              <b>brgram</b>
+              <time>11:12</time>
+            </div>
+            <div class="bubble">
+              Готово! Можно закрепить голосовой вверху и добавить «push-to-talk».
+              <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
+                <button class="btn" type="button">Закрепить</button>
+                <button class="btn" type="button">PTT: Вкл</button>
+                <button class="btn danger" type="button">Покинуть</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="composer">
+        <button class="iconBtn" type="button" title="Прикрепить">📎</button>
+        <button class="iconBtn" type="button" title="Голосовое">🎤</button>
+        <div class="input">
+          <input placeholder="Сообщение в #общий…" />
+          <span class="kbd">Enter</span>
+        </div>
+        <button class="btn primary" type="button">Отправить</button>
+      </div>
+    </main>
+
+    <!-- Members -->
+    <aside class="pane members">
+      <div class="membersTop">
+        <div style="display:flex; flex-direction:column; gap:2px;">
+          <b>Участники</b>
+          <span>онлайн: 7 • всего: 24</span>
+        </div>
+        <button class="iconBtn" type="button" title="Фильтр">⎇</button>
+      </div>
+
+      <div class="memberList">
+        <div class="member">
+          <div class="mLeft">
+            <div class="mAva">AD</div>
+            <div class="mInfo">
+              <b>Admin</b>
+              <span>управляет пространством</span>
+            </div>
+          </div>
+          <div class="pillRole admin">Owner</div>
+        </div>
+
+        <div class="member">
+          <div class="mLeft">
+            <div class="mAva">MO</div>
+            <div class="mInfo">
+              <b>Moderator</b>
+              <span>следит за чатом</span>
+            </div>
+          </div>
+          <div class="pillRole">Mod</div>
+        </div>
+
+        <div class="member">
+          <div class="mLeft">
+            <div class="mAva">PP</div>
+            <div class="mInfo">
+              <b>portaligrovoj458</b>
+              <span>говорит в «Лобби»</span>
+            </div>
+          </div>
+          <div class="pillRole live">Voice</div>
+        </div>
+
+        <div class="member">
+          <div class="mLeft">
+            <div class="mAva">IV</div>
+            <div class="mInfo">
+              <b>Ivan</b>
+              <span>печатает…</span>
+            </div>
+          </div>
+          <div class="pillRole">User</div>
+        </div>
+
+        <div class="member">
+          <div class="mLeft">
+            <div class="mAva">KT</div>
+            <div class="mInfo">
+              <b>Katya</b>
+              <span>слушает музыку</span>
+            </div>
+          </div>
+          <div class="pillRole live">Voice</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</body>
+
+</html>

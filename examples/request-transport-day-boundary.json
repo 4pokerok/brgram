@@ -1,0 +1,26 @@
+{
+  "requestId": "req-transport-day-1",
+  "passengerKey": "pax-8",
+  "transportDate": "2026-04-28",
+  "paymentMethod": "bank_card",
+  "validations": [
+    {
+      "validationId": "v1",
+      "eventTime": "2026-04-29T03:50:00+03:00",
+      "status": "accepted",
+      "eventType": "entry",
+      "mode": "metro",
+      "carrier": "metro",
+      "zone": "moscow"
+    },
+    {
+      "validationId": "v2",
+      "eventTime": "2026-04-29T04:10:00+03:00",
+      "status": "accepted",
+      "eventType": "onboard",
+      "mode": "mgt",
+      "carrier": "mgt",
+      "zone": "moscow"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "requestId": "req-region-to-moscow-1",
+  "passengerKey": "pax-6",
+  "transportDate": "2026-04-28",
+  "paymentMethod": "bank_card",
+  "validations": [
+    {
+      "validationId": "v1",
+      "eventTime": "2026-04-28T08:00:00+03:00",
+      "status": "accepted",
+      "eventType": "entry",
+      "mode": "cppk",
+      "carrier": "cppk",
+      "zone": "moscow_region",
+      "lineId": "d1",
+      "cppkValidationType": 0
+    },
+    {
+      "validationId": "v2",
+      "eventTime": "2026-04-28T08:40:00+03:00",
+      "status": "accepted",
+      "eventType": "exit",
+      "mode": "cppk",
+      "carrier": "cppk",
+      "zone": "moscow",
+      "lineId": "d1",
+      "cppkValidationType": 1
+    },
+    {
+      "validationId": "v3",
+      "eventTime": "2026-04-28T08:55:00+03:00",
+      "status": "accepted",
+      "eventType": "entry",
+      "mode": "metro",
+      "carrier": "metro",
+      "zone": "moscow"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+[
+  { "lineId": "metro_1", "mode": "metro", "carrier": "metro", "name": "Sokolnicheskaya" },
+  { "lineId": "mck", "mode": "mck", "carrier": "mck", "name": "Moscow Central Circle" },
+  { "lineId": "mgt_bus_1", "mode": "mgt", "carrier": "mgt", "name": "Bus route" },
+  { "lineId": "d1", "mode": "cppk", "carrier": "cppk", "name": "MCD D1" },
+  { "lineId": "d2", "mode": "mtppk", "carrier": "mtppk", "name": "MCD D2" }
+]

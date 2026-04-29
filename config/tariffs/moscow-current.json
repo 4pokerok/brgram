@@ -1,0 +1,54 @@
+{
+  "tariffVersion": "moscow-current",
+  "currency": "RUB",
+  "transferWindowMinutes": 90,
+  "mcdPricingStrategy": "base_plus_surcharge",
+  "paymentMethods": {
+    "bank_card": {
+      "baseFareKopecks": 8300,
+      "centralFareKopecks": 8300,
+      "suburbanFareKopecks": 11000,
+      "regionSurchargeKopecks": 2700
+    },
+    "sbp": {
+      "baseFareKopecks": 8300,
+      "centralFareKopecks": 8300,
+      "suburbanFareKopecks": 11000,
+      "regionSurchargeKopecks": 2700
+    },
+    "virtual_troika": {
+      "baseFareKopecks": 7500,
+      "centralFareKopecks": 7500,
+      "suburbanFareKopecks": 10200,
+      "regionSurchargeKopecks": 2700
+    },
+    "face_pay": {
+      "baseFareKopecks": 7100,
+      "centralFareKopecks": 7100,
+      "suburbanFareKopecks": 9800,
+      "regionSurchargeKopecks": 2700
+    }
+  },
+  "freeTransfers": [
+    {
+      "from": "metro",
+      "to": "mgt",
+      "zone": "moscow"
+    },
+    {
+      "from": "mgt",
+      "to": "metro",
+      "zone": "moscow"
+    },
+    {
+      "from": "metro",
+      "to": "mck",
+      "zone": "moscow"
+    },
+    {
+      "from": "mck",
+      "to": "metro",
+      "zone": "moscow"
+    }
+  ]
+}

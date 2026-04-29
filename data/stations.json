@@ -1,0 +1,8 @@
+[
+  { "stationId": "belorusskaya", "zone": "moscow" },
+  { "stationId": "odintsovo", "zone": "moscow_region" },
+  { "stationId": "podolsk", "zone": "moscow_region" },
+  { "stationId": "test_cppk_moscow_exit", "zone": "moscow" },
+  { "stationId": "test_cppk_region_exit", "zone": "moscow_region" },
+  { "stationId": "test_mtppk_region_entry", "zone": "moscow_region" }
+]

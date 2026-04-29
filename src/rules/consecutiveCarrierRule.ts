@@ -1,0 +1,113 @@
+import { Carrier, ValidationEventType, Zone } from '../domain/enums.js'
+import { ValidationEvent } from '../domain/validation.js'
+import { isSameTransportDay } from '../core/transportDay.js'
+import { isEntryEvent, isMcdCarrier, isMcdEvent, isValidMcdPair } from './mcdPairRule.js'
+
+export function isMoscowMetroPlace(event: ValidationEvent): boolean {
+  if (event.mode === 'metro' || event.carrier === Carrier.METRO) {
+    return true
+  }
+  return (event.placeId ?? '').toLowerCase().includes('metro')
+}
+
+export function isMckPlace(event: ValidationEvent): boolean {
+  if (event.mode === 'mck' || event.carrier === Carrier.MCK) {
+    return true
+  }
+  return (event.placeId ?? '').toLowerCase().includes('mck')
+}
+
+function countMgtEventsInWindow(events: ValidationEvent[]): number {
+  return events.filter((event) => event.carrier === Carrier.MGT).length
+}
+
+export function isDuplicatedLinkBreak(
+  prev: ValidationEvent,
+  current: ValidationEvent,
+  context?: {
+    currentWindowEvents: ValidationEvent[]
+  }
+): boolean {
+  if (prev.carrier === Carrier.METRO && current.carrier === Carrier.METRO) {
+    return true
+  }
+  if (prev.carrier === Carrier.MCK && current.carrier === Carrier.MCK) {
+    return true
+  }
+
+  if (prev.carrier === Carrier.MGT && current.carrier === Carrier.MGT) {
+    const mgtCount = countMgtEventsInWindow(context?.currentWindowEvents ?? [])
+    return mgtCount >= 2
+  }
+
+  if (isMcdEvent(prev) && isMcdEvent(current) && prev.lineId && current.lineId && prev.lineId === current.lineId) {
+    return !isValidMcdPair(prev, current)
+  }
+
+  return false
+}
+
+export function canMergeConsecutiveEvents(
+  prev: ValidationEvent,
+  current: ValidationEvent,
+  context?: {
+    currentWindowEvents: ValidationEvent[]
+  }
+): boolean {
+  if (!isSameTransportDay(prev.eventTime, current.eventTime)) {
+    return false
+  }
+
+  if (prev.metadata?.breakTransferChain === true) {
+    return false
+  }
+
+  if (isMcdCarrier(prev.carrier) && !isMcdCarrier(current.carrier)) {
+    return prev.eventType === ValidationEventType.EXIT
+  }
+
+  if (isMcdEvent(prev) && isMcdEvent(current)) {
+    if (isValidMcdPair(prev, current)) {
+      return true
+    }
+
+    if (prev.lineId && current.lineId && prev.lineId !== current.lineId) {
+      return true
+    }
+
+    return false
+  }
+
+  if (prev.carrier === current.carrier) {
+    if (prev.carrier === Carrier.METRO || prev.carrier === Carrier.MCK) {
+      return false
+    }
+
+    if (prev.carrier === Carrier.MGT) {
+      const mgtCount = countMgtEventsInWindow(context?.currentWindowEvents ?? [])
+      return mgtCount < 2
+    }
+  }
+
+  if (isMoscowMetroPlace(prev) && isMckPlace(current)) {
+    return true
+  }
+
+  if (isMckPlace(prev) && isMoscowMetroPlace(current)) {
+    return true
+  }
+
+  if (prev.carrier === Carrier.METRO && current.carrier === Carrier.MGT) {
+    return prev.zone === Zone.MOSCOW && current.zone === Zone.MOSCOW
+  }
+
+  if (prev.carrier === Carrier.MGT && current.carrier === Carrier.METRO) {
+    return prev.zone === Zone.MOSCOW && current.zone === Zone.MOSCOW
+  }
+
+  if (isMcdCarrier(current.carrier) && isEntryEvent(current)) {
+    return true
+  }
+
+  return true
+}

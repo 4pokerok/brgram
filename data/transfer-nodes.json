@@ -1,0 +1,4 @@
+[
+  { "nodeId": "metro_mgt_1", "from": "metro", "to": "mgt", "zone": "moscow" },
+  { "nodeId": "metro_mck_1", "from": "metro", "to": "mck", "zone": "moscow" }
+]

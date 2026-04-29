@@ -1,0 +1,32 @@
+[
+  {
+    "carrier": "cppk",
+    "lineId": "d1",
+    "stationId": "belorusskaya",
+    "missingEventType": "exit",
+    "syntheticEventType": "exit",
+    "syntheticZone": "moscow",
+    "syntheticStationId": "test_cppk_moscow_exit",
+    "reason": "MCD_EXIT_AUTO_COMPLETED_BY_REFERENCE_TABLE"
+  },
+  {
+    "carrier": "cppk",
+    "lineId": "d1",
+    "stationId": "odintsovo",
+    "missingEventType": "exit",
+    "syntheticEventType": "exit",
+    "syntheticZone": "moscow_region",
+    "syntheticStationId": "test_cppk_region_exit",
+    "reason": "MCD_EXIT_AUTO_COMPLETED_BY_REFERENCE_TABLE"
+  },
+  {
+    "carrier": "mtppk",
+    "lineId": "d2",
+    "stationId": "podolsk",
+    "missingEventType": "entry",
+    "syntheticEventType": "entry",
+    "syntheticZone": "moscow_region",
+    "syntheticStationId": "test_mtppk_region_entry",
+    "reason": "MCD_ENTRY_AUTO_COMPLETED_BY_REFERENCE_TABLE"
+  }
+]
