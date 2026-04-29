@@ -56,6 +56,27 @@ const chargeTypeLabels: Record<string, string> = {
   adjustment: 'Корректировка'
 }
 
+const chargeReasonLabels: Record<string, string> = {
+  BASE_FARE: 'Базовый тариф',
+  FREE_TRANSFER_WITHIN_90_MINUTES: 'Бесплатная пересадка в пределах 90 минут',
+  METRO_TO_MGT_FREE_TRANSFER: 'Бесплатная пересадка метро -> МГТ',
+  MGT_TO_METRO_FREE_TRANSFER: 'Бесплатная пересадка МГТ -> метро',
+  METRO_TO_MCK_FREE_TRANSFER: 'Бесплатная пересадка метро -> МЦК',
+  MCK_TO_METRO_FREE_TRANSFER: 'Бесплатная пересадка МЦК -> метро',
+  MCD_ENTRY_INCLUDED_IN_WINDOW: 'Вход МЦД включен в текущее окно',
+  MCD_EXIT_COMPLETION: 'Автозавершение выхода МЦД',
+  MCD_ENTRY_COMPLETION: 'Автодобавление входа МЦД',
+  MCD_PAIR_AUTO_COMPLETED_BY_CARRIER: 'Пара МЦД автозакрыта перевозчиком',
+  MCD_PAIR_AUTO_COMPLETED_BY_FARE_CORE: 'Пара МЦД автозакрыта движком тарифа',
+  MOSCOW_TO_REGION_EXIT_SURCHARGE: 'Доплата за выезд из Москвы в область',
+  REGION_TO_MOSCOW_FREE_METRO_TRANSFER: 'Бесплатная пересадка на метро после въезда в Москву',
+  SAME_CARRIER_NEW_WINDOW: 'Новое окно из-за повторного перевозчика',
+  WINDOW_EXPIRED: 'Пересадочное окно истекло',
+  TRANSPORT_DAY_BOUNDARY: 'Граница транспортных суток',
+  DUPLICATED_LINK_NEW_WINDOW: 'Новое окно из-за дублирования звена',
+  UNSUPPORTED_CPPK_TRAIN_SURCHARGE_7000: 'Доплата ЦППК 7000 требует ручной обработки'
+}
+
 const fareTypeLabels: Record<string, string> = {
   single_ride: 'Одиночная поездка',
   transfer_window: 'Пересадочное окно',
@@ -258,6 +279,10 @@ function formatKopecks(value: number): string {
 
 function getChargeTypeLabel(chargeType: string): string {
   return chargeTypeLabels[chargeType] ?? chargeType
+}
+
+function getChargeReasonLabel(reason: string): string {
+  return chargeReasonLabels[reason] ?? reason
 }
 
 function getFareTypeLabel(fareType: string): string {
@@ -506,7 +531,7 @@ export function App() {
                     {visibleCharges.map((charge) => (
                       <tr key={charge.chargeId}>
                         <td>{getChargeTypeLabel(charge.chargeType)}</td>
-                        <td>{charge.reason}</td>
+                        <td>{getChargeReasonLabel(charge.reason)}</td>
                         <td>{charge.validationId}</td>
                         <td>{formatKopecks(charge.amountKopecks)}</td>
                       </tr>
