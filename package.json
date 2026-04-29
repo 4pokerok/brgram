@@ -10,9 +10,12 @@
     "dev": "tsx src/index.ts",
     "dev:api": "tsx src/api/server.ts",
     "dev:worker": "tsx src/kafka/worker.ts",
+    "dev:web": "npm --prefix apps/web run dev",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src --ext .ts",
+    "build:web": "npm --prefix apps/web run build",
+    "typecheck:web": "npm --prefix apps/web run typecheck",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit"
   },

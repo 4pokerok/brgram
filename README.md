@@ -98,6 +98,25 @@ curl -X POST http://localhost:3000/api/v1/fare/calculate \
   --data @examples/request-region-exit.json
 ```
 
+## Запуск Frontend Playground
+
+```bash
+npm --prefix apps/web install
+npm run dev:web
+```
+
+Frontend по умолчанию работает на `http://localhost:5173` и ходит в API через Vite proxy (`/api`, `/health` -> `http://localhost:3000`).
+
+Рекомендуемый локальный запуск:
+
+```bash
+# Терминал 1
+npm run dev:api
+
+# Терминал 2
+npm run dev:web
+```
+
 ## Запуск Kafka/Redpanda
 
 ```bash
