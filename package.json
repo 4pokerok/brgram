@@ -9,8 +9,8 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "dev:api": "tsx src/api/server.ts",
-    "dev:worker": "KAFKA_BROKERS=94.139.255.96:9094 KAFKA_TOPIC_INPUT=validations tsx src/kafka/worker.ts",
-    "dev:worker:vm": "KAFKA_BROKERS=10.50.0.20:9092 KAFKA_TOPIC_INPUT=validations tsx src/kafka/worker.ts",
+    "dev:worker": "KAFKAJS_NO_PARTITIONER_WARNING=1 KAFKA_BROKERS=94.139.255.96:9094 KAFKA_TOPIC_INPUT=validations tsx src/kafka/worker.ts",
+    "dev:worker:vm": "KAFKAJS_NO_PARTITIONER_WARNING=1 KAFKA_BROKERS=10.50.0.20:9092 KAFKA_TOPIC_INPUT=validations tsx src/kafka/worker.ts",
     "dev:web": "npm --prefix apps/web run dev",
     "test": "vitest run",
     "test:watch": "vitest",
