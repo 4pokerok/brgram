@@ -4,7 +4,7 @@ import { registerCompressionCodecs } from './registerCompressionCodecs.js'
 export function createProducer(): Producer {
   registerCompressionCodecs()
 
-  const brokers = (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(',')
+  const brokers = (process.env.KAFKA_BROKERS ?? '94.139.255.96:9094').split(',')
   const clientId = process.env.KAFKA_CLIENT_ID ?? 'fare-worker'
 
   const kafka = new Kafka({

@@ -124,6 +124,17 @@ docker compose up -d
 npm run dev:worker
 ```
 
+`npm run dev:worker` уже преднастроен для внешнего Kafka:
+
+- broker: `94.139.255.96:9094`
+- input topic: `validations`
+
+Если запускаете из VM, используйте:
+
+```bash
+npm run dev:worker:vm
+```
+
 Worker по умолчанию читает `fare.passenger-day.ready.v1` и пишет:
 
 - успех -> `fare.calculation.result.v1`
