@@ -411,7 +411,7 @@ export function App() {
         <section className="panel">
           <div className="panel-header">
             <div className="panel-header-row">
-              <h2>Калькулятор тарифа</h2>
+              <h2>МТТЕХ - расчет поездок</h2>
               <button
                 className="action-button secondary theme-toggle"
                 onClick={() => setTheme((current) => (current === 'light' ? 'dark' : 'light'))}
