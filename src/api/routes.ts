@@ -4,6 +4,7 @@ import { calculateFare } from '../core/calculateFare.js'
 import { loadDictionaries } from '../config/loadDictionaries.js'
 import { loadTariffConfig } from '../config/loadTariffConfig.js'
 import { FareCalculationRequest } from '../domain/request.js'
+import { getValidationFeed } from './validationFeed.js'
 
 export function createRoutes(): Router {
   const router = Router()
@@ -33,6 +34,30 @@ export function createRoutes(): Router {
         message
       })
     }
+  })
+
+  router.get('/api/v1/kafka/validations', (req, res) => {
+    const passengerKey = typeof req.query.passengerKey === 'string' ? req.query.passengerKey : undefined
+    const transportDate =
+      typeof req.query.transportDate === 'string' ? req.query.transportDate : undefined
+    const carrier = typeof req.query.carrier === 'string' ? req.query.carrier : undefined
+    const limitRaw = typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined
+
+    const { items, state } = getValidationFeed({
+      passengerKey,
+      transportDate,
+      carrier,
+      limit: Number.isFinite(limitRaw) ? limitRaw : 50
+    })
+
+    res.status(200).json({
+      sourceTopic: process.env.KAFKA_TOPIC_INPUT ?? 'validations',
+      connected: state.connected,
+      lastError: state.lastError,
+      lastMessageAt: state.lastMessageAt,
+      count: items.length,
+      items
+    })
   })
 
   return router

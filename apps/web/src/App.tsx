@@ -41,6 +41,30 @@ type FareCalculationResult = {
   }>
 }
 
+type ValidationFeedItem = {
+  validationId: string
+  eventTime: string
+  passengerKey: string
+  carrier: string
+  mode: string
+  eventType: string
+  status: string
+  zone: string
+  transportDate?: string
+  topic: string
+  partition: number
+  offset: string
+}
+
+type ValidationFeedResponse = {
+  sourceTopic: string
+  connected: boolean
+  lastError?: string
+  lastMessageAt?: string
+  count: number
+  items: ValidationFeedItem[]
+}
+
 type ApiStatus = 'unknown' | 'up' | 'down'
 type ThemeMode = 'light' | 'dark'
 
@@ -85,6 +109,43 @@ const fareTypeLabels: Record<string, string> = {
   mcd_pair: 'Пара МЦД (вход-выход)',
   mcd_auto_completed_pair: 'Автодополненная пара МЦД',
   unknown: 'Неизвестный тип поездки'
+}
+
+const eventTypeLabels: Record<string, string> = {
+  entry: 'Вход',
+  exit: 'Выход',
+  onboard: 'Посадка',
+  unknown: 'Неизвестно'
+}
+
+const validationStatusLabels: Record<string, string> = {
+  accepted: 'Принято',
+  declined: 'Отклонено',
+  unknown: 'Неизвестно'
+}
+
+const carrierLabels: Record<string, string> = {
+  metro: 'Метро',
+  mck: 'МЦК',
+  mgt: 'МГТ',
+  cppk: 'ЦППК',
+  mtppk: 'МТППК',
+  unknown: 'Неизвестно'
+}
+
+const modeLabels: Record<string, string> = {
+  metro: 'Метро',
+  mck: 'МЦК',
+  mgt: 'МГТ',
+  cppk: 'ЦППК',
+  mtppk: 'МТППК',
+  unknown: 'Неизвестно'
+}
+
+const zoneLabels: Record<string, string> = {
+  moscow: 'Москва',
+  moscow_region: 'Московская область',
+  unknown: 'Неизвестно'
 }
 
 const warningTranslations: Record<string, { title: string; message: string }> = {
@@ -297,6 +358,26 @@ function getWarningMessage(code: string, fallbackMessage: string): string {
   return warningTranslations[code]?.message ?? fallbackMessage
 }
 
+function getEventTypeLabel(eventType: string): string {
+  return eventTypeLabels[eventType] ?? eventType
+}
+
+function getValidationStatusLabel(status: string): string {
+  return validationStatusLabels[status] ?? status
+}
+
+function getCarrierLabel(carrier: string): string {
+  return carrierLabels[carrier] ?? carrier
+}
+
+function getModeLabel(mode: string): string {
+  return modeLabels[mode] ?? mode
+}
+
+function getZoneLabel(zone: string): string {
+  return zoneLabels[zone] ?? zone
+}
+
 function getInitialTheme(): ThemeMode {
   if (typeof window === 'undefined') {
     return 'light'
@@ -339,6 +420,14 @@ export function App() {
   const [apiStatus, setApiStatus] = useState<ApiStatus>('unknown')
   const [onlyPaidCharges, setOnlyPaidCharges] = useState(false)
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme)
+  const [feedItems, setFeedItems] = useState<ValidationFeedItem[]>([])
+  const [feedConnected, setFeedConnected] = useState(false)
+  const [feedLastError, setFeedLastError] = useState<string | null>(null)
+  const [feedLastMessageAt, setFeedLastMessageAt] = useState<string | null>(null)
+  const [feedPassengerKey, setFeedPassengerKey] = useState('')
+  const [feedTransportDate, setFeedTransportDate] = useState('')
+  const [feedCarrier, setFeedCarrier] = useState('')
+  const [feedLoading, setFeedLoading] = useState(false)
   const requestSequenceRef = useRef(0)
 
   const scenario = useMemo(
@@ -405,6 +494,66 @@ export function App() {
     window.localStorage.setItem(THEME_STORAGE_KEY, theme)
   }, [theme])
 
+  useEffect(() => {
+    let active = true
+
+    const loadFeed = async () => {
+      if (!active) {
+        return
+      }
+      setFeedLoading(true)
+
+      try {
+        const params = new URLSearchParams()
+        if (feedPassengerKey.trim()) {
+          params.set('passengerKey', feedPassengerKey.trim())
+        }
+        if (feedTransportDate.trim()) {
+          params.set('transportDate', feedTransportDate.trim())
+        }
+        if (feedCarrier.trim()) {
+          params.set('carrier', feedCarrier.trim())
+        }
+        params.set('limit', '50')
+
+        const response = await fetch(`/api/v1/kafka/validations?${params.toString()}`)
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`)
+        }
+
+        const body = (await response.json()) as ValidationFeedResponse
+        if (!active) {
+          return
+        }
+        setFeedItems(body.items)
+        setFeedConnected(body.connected)
+        setFeedLastError(body.lastError ?? null)
+        setFeedLastMessageAt(body.lastMessageAt ?? null)
+      } catch (unknownError) {
+        if (!active) {
+          return
+        }
+        const message = unknownError instanceof Error ? unknownError.message : 'Ошибка загрузки feed'
+        setFeedConnected(false)
+        setFeedLastError(message)
+      } finally {
+        if (active) {
+          setFeedLoading(false)
+        }
+      }
+    }
+
+    void loadFeed()
+    const timer = window.setInterval(() => {
+      void loadFeed()
+    }, 4000)
+
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [feedPassengerKey, feedTransportDate, feedCarrier])
+
   return (
     <div className="layout clean-layout">
       <main className="content single-column">
@@ -447,6 +596,79 @@ export function App() {
               {apiStatus === 'down' && 'недоступен'}
             </div>
           </div>
+
+          <article className="card feed-card">
+            <div className="result-controls">
+              <h3>Лента событий</h3>
+            </div>
+            <div className="feed-filters">
+              <input
+                className="feed-input"
+                placeholder="Ключ пассажира"
+                value={feedPassengerKey}
+                onChange={(event) => setFeedPassengerKey(event.target.value)}
+              />
+              <input
+                className="feed-input"
+                placeholder="Дата перевозки (ГГГГ-ММ-ДД)"
+                value={feedTransportDate}
+                onChange={(event) => setFeedTransportDate(event.target.value)}
+              />
+              <select
+                className="feed-input"
+                value={feedCarrier}
+                onChange={(event) => setFeedCarrier(event.target.value)}
+              >
+                <option value="">Все перевозчики</option>
+                <option value="metro">Метро</option>
+                <option value="mck">МЦК</option>
+                <option value="mgt">МГТ</option>
+                <option value="cppk">ЦППК</option>
+                <option value="mtppk">МТППК</option>
+              </select>
+            </div>
+            <div className="feed-status">
+              Последнее событие: {feedLastMessageAt ?? 'нет'} {feedLastError ? `| Ошибка: ${feedLastError}` : ''}
+            </div>
+            <div className="feed-table-wrap">
+              <table className="charges-table">
+                <thead>
+                  <tr>
+                    <th>Время</th>
+                    <th>Пассажир</th>
+                    <th>Перевозчик</th>
+                    <th>Режим</th>
+                    <th>Тип / статус</th>
+                    <th>Зона</th>
+                    <th>ID валидации</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {feedItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="empty-feed-cell">
+                        Событий пока нет (или фильтр слишком узкий).
+                      </td>
+                    </tr>
+                  ) : (
+                    feedItems.map((item) => (
+                      <tr key={`${item.topic}-${item.partition}-${item.offset}-${item.validationId}`}>
+                        <td>{item.eventTime}</td>
+                        <td>{item.passengerKey}</td>
+                        <td>{getCarrierLabel(item.carrier)}</td>
+                        <td>{getModeLabel(item.mode)}</td>
+                        <td>
+                          {getEventTypeLabel(item.eventType)} / {getValidationStatusLabel(item.status)}
+                        </td>
+                        <td>{getZoneLabel(item.zone)}</td>
+                        <td>{item.validationId}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </article>
 
           {error ? <div className="error-banner">{error}</div> : null}
 
