@@ -42,6 +42,9 @@ type FareCalculationResult = {
 }
 
 type ApiStatus = 'unknown' | 'up' | 'down'
+type ThemeMode = 'light' | 'dark'
+
+const THEME_STORAGE_KEY = 'fare-ui-theme'
 
 const chargeTypeLabels: Record<string, string> = {
   base_fare: 'Базовый тариф',
@@ -269,6 +272,19 @@ function getWarningMessage(code: string, fallbackMessage: string): string {
   return warningTranslations[code]?.message ?? fallbackMessage
 }
 
+function getInitialTheme(): ThemeMode {
+  if (typeof window === 'undefined') {
+    return 'light'
+  }
+
+  const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
+  if (storedTheme === 'light' || storedTheme === 'dark') {
+    return storedTheme
+  }
+
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
 async function callFareApi(
   request: FareCalculationRequest
 ): Promise<{ ok: true; data: FareCalculationResult } | { ok: false; error: string }> {
@@ -297,6 +313,7 @@ export function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [apiStatus, setApiStatus] = useState<ApiStatus>('unknown')
   const [onlyPaidCharges, setOnlyPaidCharges] = useState(false)
+  const [theme, setTheme] = useState<ThemeMode>(getInitialTheme)
   const requestSequenceRef = useRef(0)
 
   const scenario = useMemo(
@@ -358,6 +375,11 @@ export function App() {
     void calculateFare(scenario.request)
   }, [scenarioId])
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme)
+  }, [theme])
+
   return (
     <div className="layout clean-layout">
       <main className="content single-column">
@@ -382,6 +404,12 @@ export function App() {
             <div className="button-row">
               <button className="action-button secondary" onClick={checkApi}>
                 Проверить API
+              </button>
+              <button
+                className="action-button secondary theme-toggle"
+                onClick={() => setTheme((current) => (current === 'light' ? 'dark' : 'light'))}
+              >
+                {theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
               </button>
             </div>
 
