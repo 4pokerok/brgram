@@ -98,7 +98,11 @@ export function calculateFare(
   )
   warnings.push(...completed.warnings)
 
-  const windowBuild = buildTripWindows(completed.validations, parsedTariff.transferWindowMinutes)
+  const windowBuild = buildTripWindows(
+    completed.validations,
+    parsedTariff.transferWindowMinutes,
+    dictionaries?.refPlaces ?? []
+  )
   warnings.push(...windowBuild.warnings)
 
   if (windowBuild.windows.length === 0) {

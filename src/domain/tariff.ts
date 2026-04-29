@@ -39,4 +39,12 @@ export type Dictionaries = {
   stations: Array<Record<string, unknown>>
   transferNodes: Array<Record<string, unknown>>
   mcdEntryExitRules: McdEntryExitRule[]
+  refPlaces: RefPlace[]
+}
+
+export type RefPlace = {
+  placeId: string
+  carrier: Carrier
+  ln_name2?: string
+  is_except?: boolean
 }

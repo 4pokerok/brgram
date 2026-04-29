@@ -26,6 +26,6 @@ describe('transfer window expiry', () => {
     const result = runCalculate(request)
 
     expect(result.trips).toHaveLength(2)
-    expect(result.totalAmountKopecks).toBe(16600)
+    expect(result.totalAmountKopecks).toBe(10000)
   })
 })

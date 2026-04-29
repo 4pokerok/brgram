@@ -12,7 +12,7 @@ import {
 import { FareCalculationRequest } from '../domain/request.js'
 import { Dictionaries, TariffConfig } from '../domain/tariff.js'
 import { ValidationEvent } from '../domain/validation.js'
-import { mcdEntryExitRuleSchema, tariffConfigSchema } from '../schemas/tariff.schema.js'
+import { mcdEntryExitRuleSchema, refPlaceSchema, tariffConfigSchema } from '../schemas/tariff.schema.js'
 
 const rootDir = process.cwd()
 
@@ -32,7 +32,10 @@ const dictionaries: Dictionaries = {
   ) as Array<Record<string, unknown>>,
   mcdEntryExitRules: (JSON.parse(
     readFileSync(path.resolve(rootDir, 'data/mcd-entry-exit-rules.json'), 'utf-8')
-  ) as unknown[]).map((item) => mcdEntryExitRuleSchema.parse(item))
+  ) as unknown[]).map((item) => mcdEntryExitRuleSchema.parse(item)),
+  refPlaces: (JSON.parse(
+    readFileSync(path.resolve(rootDir, 'data/ref-place.json'), 'utf-8')
+  ) as unknown[]).map((item) => refPlaceSchema.parse(item))
 }
 
 export function buildValidation(input: Partial<ValidationEvent> & Pick<ValidationEvent, 'validationId'>): ValidationEvent {

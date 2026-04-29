@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Dictionaries } from '../domain/tariff.js'
-import { mcdEntryExitRuleSchema } from '../schemas/tariff.schema.js'
+import { mcdEntryExitRuleSchema, refPlaceSchema } from '../schemas/tariff.schema.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -15,19 +15,22 @@ async function readJson<T>(relativePath: string): Promise<T> {
 }
 
 export async function loadDictionaries(): Promise<Dictionaries> {
-  const [lines, stations, transferNodes, rawMcdEntryExitRules] = await Promise.all([
+  const [lines, stations, transferNodes, rawMcdEntryExitRules, rawRefPlaces] = await Promise.all([
     readJson<Array<Record<string, unknown>>>('data/lines.json'),
     readJson<Array<Record<string, unknown>>>('data/stations.json'),
     readJson<Array<Record<string, unknown>>>('data/transfer-nodes.json'),
-    readJson<Array<Record<string, unknown>>>('data/mcd-entry-exit-rules.json')
+    readJson<Array<Record<string, unknown>>>('data/mcd-entry-exit-rules.json'),
+    readJson<Array<Record<string, unknown>>>('data/ref-place.json')
   ])
 
   const mcdEntryExitRules = rawMcdEntryExitRules.map((rule) => mcdEntryExitRuleSchema.parse(rule))
+  const refPlaces = rawRefPlaces.map((item) => refPlaceSchema.parse(item))
 
   return {
     lines,
     stations,
     transferNodes,
-    mcdEntryExitRules
+    mcdEntryExitRules,
+    refPlaces
   }
 }

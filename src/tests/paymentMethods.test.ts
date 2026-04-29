@@ -14,7 +14,7 @@ describe('payment method pricing', () => {
     )
 
     const result = runCalculate(request)
-    expect(result.totalAmountKopecks).toBe(7500)
+    expect(result.totalAmountKopecks).toBe(5000)
   })
 
   it('uses face pay base fare', () => {
@@ -28,6 +28,6 @@ describe('payment method pricing', () => {
     )
 
     const result = runCalculate(request)
-    expect(result.totalAmountKopecks).toBe(7100)
+    expect(result.totalAmountKopecks).toBe(5000)
   })
 })

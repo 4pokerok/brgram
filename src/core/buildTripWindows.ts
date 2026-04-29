@@ -1,4 +1,5 @@
 import { CalculationWarning } from '../domain/result.js'
+import { RefPlace } from '../domain/tariff.js'
 import { ValidationEvent } from '../domain/validation.js'
 import { WarningCode } from '../domain/warningCodes.js'
 import { canMergeConsecutiveEvents, isDuplicatedLinkBreak } from '../rules/consecutiveCarrierRule.js'
@@ -12,7 +13,8 @@ type BuildTripWindowsResult = {
 
 export function buildTripWindows(
   validations: ValidationEvent[],
-  transferWindowMinutes: number
+  transferWindowMinutes: number,
+  refPlaces: RefPlace[] = []
 ): BuildTripWindowsResult {
   if (validations.length === 0) {
     return { windows: [], warnings: [] }
@@ -46,12 +48,14 @@ export function buildTripWindows(
     if (
       !startNewWindow &&
       !canMergeConsecutiveEvents(prev, current, {
-        currentWindowEvents: currentWindow
+        currentWindowEvents: currentWindow,
+        refPlaces
       })
     ) {
       if (
         isDuplicatedLinkBreak(prev, current, {
-          currentWindowEvents: currentWindow
+          currentWindowEvents: currentWindow,
+          refPlaces
         })
       ) {
         warnings.push({

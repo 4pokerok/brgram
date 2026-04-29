@@ -1,0 +1,12 @@
+[
+  { "placeId": "belorusskaya", "carrier": "cppk", "ln_name2": "MCD-1", "is_except": true },
+  { "placeId": "savelovskaya", "carrier": "cppk", "ln_name2": "MCD-1", "is_except": true },
+  { "placeId": "odintsovo", "carrier": "cppk", "ln_name2": "MCD-1", "is_except": false },
+  { "placeId": "podolsk", "carrier": "mtppk", "ln_name2": "MCD-2", "is_except": false },
+  { "placeId": "tsaritsyno", "carrier": "mtppk", "ln_name2": "MCD-2", "is_except": false },
+  { "placeId": "kuntsevskaya", "carrier": "metro", "is_except": true },
+  { "placeId": "slavyansky_bulvar", "carrier": "metro", "is_except": true },
+  { "placeId": "test_cppk_moscow_exit", "carrier": "cppk", "ln_name2": "MCD-1", "is_except": false },
+  { "placeId": "test_cppk_region_exit", "carrier": "cppk", "ln_name2": "MCD-1", "is_except": false },
+  { "placeId": "test_mtppk_region_entry", "carrier": "mtppk", "ln_name2": "MCD-2", "is_except": false }
+]

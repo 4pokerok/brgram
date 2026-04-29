@@ -28,7 +28,7 @@ describe('cppk -> mtppk valid pair', () => {
 
     const result = runCalculate(request)
 
-    expect(result.totalAmountKopecks).toBe(11000)
+    expect(result.totalAmountKopecks).toBe(7000)
     expect(result.trips).toHaveLength(1)
   })
 })

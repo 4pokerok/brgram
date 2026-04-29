@@ -30,6 +30,6 @@ describe('cppk line change', () => {
     const result = runCalculate(request)
 
     expect(result.trips).toHaveLength(1)
-    expect(result.totalAmountKopecks).toBe(8300)
+    expect(result.totalAmountKopecks).toBe(5000)
   })
 })

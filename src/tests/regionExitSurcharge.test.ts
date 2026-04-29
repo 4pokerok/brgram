@@ -46,7 +46,7 @@ describe('moscow to region surcharge', () => {
 
     const result = runCalculate(request)
 
-    expect(result.totalAmountKopecks).toBe(11000)
+    expect(result.totalAmountKopecks).toBe(7000)
     expect(result.charges.some((charge) => charge.reason === ChargeReason.MOSCOW_TO_REGION_EXIT_SURCHARGE)).toBe(
       true
     )

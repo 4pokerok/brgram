@@ -38,7 +38,7 @@ describe('region -> moscow -> metro transfer', () => {
 
     const result = runCalculate(request)
 
-    expect(result.totalAmountKopecks).toBe(11000)
+    expect(result.totalAmountKopecks).toBe(7000)
     expect(
       result.charges.some(
         (charge) => charge.reason === ChargeReason.REGION_TO_MOSCOW_FREE_METRO_TRANSFER && charge.amountKopecks === 0

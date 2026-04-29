@@ -38,3 +38,10 @@ export const mcdEntryExitRuleSchema = z.object({
   syntheticStationId: z.string().min(1),
   reason: z.string().min(1)
 })
+
+export const refPlaceSchema = z.object({
+  placeId: z.string().min(1),
+  carrier: z.nativeEnum(Carrier),
+  ln_name2: z.string().min(1).optional(),
+  is_except: z.boolean().optional()
+})

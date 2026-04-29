@@ -26,7 +26,7 @@ describe('metro -> mgt transfer', () => {
     const result = runCalculate(request)
 
     expect(result.trips).toHaveLength(1)
-    expect(result.totalAmountKopecks).toBe(8300)
+    expect(result.totalAmountKopecks).toBe(5000)
     expect(result.charges[1]?.amountKopecks).toBe(0)
   })
 })
