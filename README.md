@@ -124,7 +124,7 @@ docker compose up -d
 npm run dev:worker
 ```
 
-Worker читает `fare.passenger-day.ready.v1` и пишет:
+Worker по умолчанию читает `fare.passenger-day.ready.v1` и пишет:
 
 - успех -> `fare.calculation.result.v1`
 - Zod validation error -> `fare.calculation.dlq.v1`
@@ -134,6 +134,28 @@ Kafka key:
 
 ```text
 passengerKey:transportDate
+```
+
+Топики и брокеры можно переопределить через env:
+
+- `KAFKA_BROKERS`
+- `KAFKA_TOPIC_INPUT`
+- `KAFKA_TOPIC_RESULT`
+- `KAFKA_TOPIC_FAILED`
+- `KAFKA_TOPIC_DLQ`
+
+### Подключение к внешнему Kafka (ваш стенд)
+
+Если запуск с локальной машины (через интернет):
+
+```bash
+KAFKA_BROKERS=94.139.255.96:9094 KAFKA_TOPIC_INPUT=validations npm run dev:worker
+```
+
+Если запуск из VM (быстрее по внутренней сети):
+
+```bash
+KAFKA_BROKERS=10.50.0.20:9092 KAFKA_TOPIC_INPUT=validations npm run dev:worker
 ```
 
 ## Пример запроса
