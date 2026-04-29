@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 type PaymentMethod = 'bank_card' | 'sbp' | 'virtual_troika' | 'face_pay'
 
@@ -49,17 +49,21 @@ type CompareResult = {
   warningCount: number
 }
 
+type ApiStatus = 'unknown' | 'up' | 'down'
+
+const paymentMethods: PaymentMethod[] = ['bank_card', 'sbp', 'virtual_troika', 'face_pay']
+
 const paymentMethodLabels: Record<PaymentMethod, string> = {
-  bank_card: 'Bank Card',
-  sbp: 'SBP',
-  virtual_troika: 'Virtual Troika',
+  bank_card: 'Банковская карта',
+  sbp: 'СБП',
+  virtual_troika: 'Виртуальная Тройка',
   face_pay: 'Face Pay'
 }
 
-const sampleRequests: Array<{ id: string; title: string; request: FareCalculationRequest }> = [
+const scenarios: Array<{ id: string; title: string; request: FareCalculationRequest }> = [
   {
     id: 'region-exit',
-    title: 'Moscow -> Region Exit',
+    title: 'Москва → область (доплата)',
     request: {
       requestId: 'req-region-exit-1',
       passengerKey: 'pax-5',
@@ -111,7 +115,7 @@ const sampleRequests: Array<{ id: string; title: string; request: FareCalculatio
   },
   {
     id: 'region-to-moscow',
-    title: 'Region -> Moscow -> Metro',
+    title: 'Область → Москва → метро',
     request: {
       requestId: 'req-region-to-moscow-1',
       passengerKey: 'pax-6',
@@ -154,7 +158,7 @@ const sampleRequests: Array<{ id: string; title: string; request: FareCalculatio
   },
   {
     id: 'cppk-types',
-    title: 'CPPK Types Playground',
+    title: 'Типы валидаций ЦППК',
     request: {
       requestId: 'req-cppk-types-1',
       passengerKey: 'pax-7',
@@ -203,108 +207,92 @@ function formatKopecks(value: number): string {
   return `${(value / 100).toFixed(2)} ₽`
 }
 
-async function postCalculation(
+function tryParseRequest(json: string): FareCalculationRequest | null {
+  try {
+    return JSON.parse(json) as FareCalculationRequest
+  } catch {
+    return null
+  }
+}
+
+async function callFareApi(
   request: FareCalculationRequest
 ): Promise<{ ok: true; data: FareCalculationResult } | { ok: false; error: string }> {
   const response = await fetch('/api/v1/fare/calculate', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request)
   })
 
-  const responseText = await response.text()
+  const body = await response.text()
   if (!response.ok) {
-    return {
-      ok: false,
-      error: responseText || `HTTP ${response.status}`
-    }
+    return { ok: false, error: body || `HTTP ${response.status}` }
   }
 
   try {
-    return {
-      ok: true,
-      data: JSON.parse(responseText) as FareCalculationResult
-    }
+    return { ok: true, data: JSON.parse(body) as FareCalculationResult }
   } catch {
-    return {
-      ok: false,
-      error: 'API returned invalid JSON.'
-    }
+    return { ok: false, error: 'API вернул невалидный JSON.' }
   }
 }
 
 export function App() {
-  const [activeSampleId, setActiveSampleId] = useState(sampleRequests[0].id)
-  const [requestText, setRequestText] = useState(
-    JSON.stringify(sampleRequests[0].request, null, 2)
-  )
+  const [activeScenarioId, setActiveScenarioId] = useState(scenarios[0].id)
+  const [requestText, setRequestText] = useState(JSON.stringify(scenarios[0].request, null, 2))
   const [result, setResult] = useState<FareCalculationResult | null>(null)
   const [compare, setCompare] = useState<CompareResult[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [apiHealth, setApiHealth] = useState<'checking' | 'up' | 'down'>('checking')
+  const [apiStatus, setApiStatus] = useState<ApiStatus>('unknown')
+  const [onlyPaidCharges, setOnlyPaidCharges] = useState(false)
+  const [copyMessage, setCopyMessage] = useState('')
 
-  useEffect(() => {
-    let cancelled = false
+  const parsedRequest = useMemo(() => tryParseRequest(requestText), [requestText])
 
-    const checkHealth = async () => {
-      try {
-        const response = await fetch('/health')
-        if (!cancelled) {
-          setApiHealth(response.ok ? 'up' : 'down')
-        }
-      } catch {
-        if (!cancelled) {
-          setApiHealth('down')
-        }
-      }
+  const visibleCharges = useMemo(() => {
+    if (!result) {
+      return []
     }
-
-    void checkHealth()
-    const intervalId = window.setInterval(() => {
-      void checkHealth()
-    }, 4000)
-
-    return () => {
-      cancelled = true
-      window.clearInterval(intervalId)
+    if (!onlyPaidCharges) {
+      return result.charges
     }
-  }, [])
+    return result.charges.filter((charge) => charge.amountKopecks > 0)
+  }, [onlyPaidCharges, result])
 
-  const parsedRequest = useMemo(() => {
+  const checkApi = async () => {
     try {
-      return JSON.parse(requestText) as FareCalculationRequest
+      const response = await fetch('/health')
+      setApiStatus(response.ok ? 'up' : 'down')
     } catch {
-      return null
+      setApiStatus('down')
     }
-  }, [requestText])
+  }
 
-  const handleLoadSample = (sampleId: string) => {
-    const sample = sampleRequests.find((entry) => entry.id === sampleId)
-    if (!sample) {
+  const loadScenario = (scenarioId: string) => {
+    const scenario = scenarios.find((entry) => entry.id === scenarioId)
+    if (!scenario) {
       return
     }
-    setActiveSampleId(sample.id)
-    setRequestText(JSON.stringify(sample.request, null, 2))
+
+    setActiveScenarioId(scenario.id)
+    setRequestText(JSON.stringify(scenario.request, null, 2))
     setResult(null)
     setCompare([])
     setError(null)
   }
 
-  const handleFormatJson = () => {
+  const formatJson = () => {
     if (!parsedRequest) {
-      setError('JSON is invalid. Fix syntax before formatting.')
+      setError('JSON невалидный. Сначала исправь синтаксис.')
       return
     }
     setRequestText(JSON.stringify(parsedRequest, null, 2))
     setError(null)
   }
 
-  const handleCalculate = async () => {
+  const calculateFare = async () => {
     if (!parsedRequest) {
-      setError('JSON is invalid. Cannot send request.')
+      setError('JSON невалидный. Нельзя отправить запрос.')
       return
     }
 
@@ -313,16 +301,16 @@ export function App() {
     setCompare([])
 
     try {
-      const response = await postCalculation(parsedRequest)
+      const response = await callFareApi(parsedRequest)
       if (!response.ok) {
         setError(response.error)
         setResult(null)
         return
       }
+
       setResult(response.data)
-    } catch (calculationError) {
-      const message =
-        calculationError instanceof Error ? calculationError.message : 'Unknown frontend error'
+    } catch (unknownError) {
+      const message = unknownError instanceof Error ? unknownError.message : 'Неизвестная ошибка'
       setError(message)
       setResult(null)
     } finally {
@@ -330,45 +318,43 @@ export function App() {
     }
   }
 
-  const handleComparePaymentMethods = async () => {
+  const comparePaymentMethods = async () => {
     if (!parsedRequest) {
-      setError('JSON is invalid. Cannot run comparison.')
+      setError('JSON невалидный. Нельзя запустить сравнение.')
       return
     }
 
-    const methods: PaymentMethod[] = ['bank_card', 'sbp', 'virtual_troika', 'face_pay']
     setIsLoading(true)
     setError(null)
     setResult(null)
 
     try {
-      const responses = await Promise.all(
-        methods.map((paymentMethod) =>
-          postCalculation({
+      const results = await Promise.all(
+        paymentMethods.map((paymentMethod) =>
+          callFareApi({
             ...parsedRequest,
             paymentMethod
           })
         )
       )
 
-      const failed = responses.find((entry) => !entry.ok)
+      const failed = results.find((item) => !item.ok)
       if (failed && !failed.ok) {
-        setError(failed.error)
         setCompare([])
+        setError(failed.error)
         return
       }
 
-      const compareRows = responses
-        .filter((entry): entry is { ok: true; data: FareCalculationResult } => entry.ok)
-        .map((entry) => ({
-          paymentMethod: entry.data.paymentMethod,
-          totalAmountKopecks: entry.data.totalAmountKopecks,
-          warningCount: entry.data.warnings.length
+      const rows = results
+        .filter((item): item is { ok: true; data: FareCalculationResult } => item.ok)
+        .map((item) => ({
+          paymentMethod: item.data.paymentMethod,
+          totalAmountKopecks: item.data.totalAmountKopecks,
+          warningCount: item.data.warnings.length
         }))
-
-      setCompare(compareRows)
-    } catch (compareError) {
-      const message = compareError instanceof Error ? compareError.message : 'Unknown comparison error'
+      setCompare(rows)
+    } catch (unknownError) {
+      const message = unknownError instanceof Error ? unknownError.message : 'Неизвестная ошибка'
       setError(message)
       setCompare([])
     } finally {
@@ -376,51 +362,76 @@ export function App() {
     }
   }
 
+  const copyResultJson = async () => {
+    if (!result) {
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(result, null, 2))
+      setCopyMessage('Результат скопирован')
+      window.setTimeout(() => {
+        setCopyMessage('')
+      }, 1500)
+    } catch {
+      setCopyMessage('Не удалось скопировать')
+      window.setTimeout(() => {
+        setCopyMessage('')
+      }, 1500)
+    }
+  }
+
   return (
     <div className="layout">
       <aside className="sidebar">
-        <h1>Fare Playground</h1>
+        <h1>Тарифный Playground</h1>
         <p className="sidebar-subtitle">
-          UI for Moscow fare calculation core. Build requests, run pricing, inspect every charge.
+          Быстрый интерфейс для проверки `calculateFare`: загрузи сценарий, посмотри поездки,
+          начисления и предупреждения.
         </p>
 
         <div className="status-card">
-          <span className={`status-dot status-${apiHealth}`} />
+          <span className={`status-dot status-${apiStatus}`} />
           <div>
-            <div className="status-title">API Status</div>
+            <div className="status-title">Статус API</div>
             <div className="status-value">
-              {apiHealth === 'checking' && 'Checking'}
-              {apiHealth === 'up' && 'Connected to /health'}
-              {apiHealth === 'down' && 'API unavailable'}
+              {apiStatus === 'unknown' && 'не проверен'}
+              {apiStatus === 'up' && 'API доступен'}
+              {apiStatus === 'down' && 'API недоступен'}
             </div>
           </div>
         </div>
 
         <div className="section">
-          <div className="section-title">Scenarios</div>
+          <div className="section-title">Сценарии</div>
           <div className="sample-list">
-            {sampleRequests.map((sample) => (
+            {scenarios.map((scenario) => (
               <button
-                key={sample.id}
-                className={sample.id === activeSampleId ? 'sample-button active' : 'sample-button'}
-                onClick={() => handleLoadSample(sample.id)}
+                key={scenario.id}
+                className={
+                  scenario.id === activeScenarioId ? 'sample-button active' : 'sample-button'
+                }
+                onClick={() => loadScenario(scenario.id)}
               >
-                {sample.title}
+                {scenario.title}
               </button>
             ))}
           </div>
         </div>
 
         <div className="section">
-          <div className="section-title">Quick Actions</div>
-          <button onClick={handleFormatJson} className="action-button secondary">
-            Format JSON
+          <div className="section-title">Действия</div>
+          <button className="action-button secondary" onClick={checkApi}>
+            Проверить API
           </button>
-          <button onClick={handleComparePaymentMethods} className="action-button">
-            Compare Payment Methods
+          <button className="action-button secondary" onClick={formatJson}>
+            Форматировать JSON
           </button>
-          <button onClick={handleCalculate} className="action-button primary">
-            {isLoading ? 'Calculating...' : 'Calculate Fare'}
+          <button className="action-button primary" onClick={calculateFare}>
+            {isLoading ? 'Считаем...' : 'Рассчитать'}
+          </button>
+          <button className="action-button" onClick={comparePaymentMethods}>
+            Сравнить способы оплаты
           </button>
         </div>
       </aside>
@@ -428,22 +439,30 @@ export function App() {
       <main className="content">
         <section className="panel request-panel">
           <div className="panel-header">
-            <h2>FareCalculationRequest</h2>
+            <h2>Запрос FareCalculationRequest</h2>
             <span className={parsedRequest ? 'json-state valid' : 'json-state invalid'}>
-              {parsedRequest ? 'Valid JSON' : 'Invalid JSON'}
+              {parsedRequest ? 'JSON корректен' : 'Ошибка JSON'}
             </span>
           </div>
           <textarea
+            className="json-editor"
             value={requestText}
             onChange={(event) => setRequestText(event.target.value)}
             spellCheck={false}
-            className="json-editor"
           />
         </section>
 
         <section className="panel result-panel">
           <div className="panel-header">
-            <h2>Calculation Result</h2>
+            <h2>Результат расчёта</h2>
+            {result ? (
+              <div className="panel-actions">
+                <button className="copy-button" onClick={copyResultJson}>
+                  Скопировать JSON
+                </button>
+                {copyMessage ? <span className="copy-message">{copyMessage}</span> : null}
+              </div>
+            ) : null}
           </div>
 
           {error ? <div className="error-banner">{error}</div> : null}
@@ -452,26 +471,26 @@ export function App() {
             <>
               <div className="metrics-grid">
                 <article className="metric-card">
-                  <span className="metric-label">Total</span>
+                  <span className="metric-label">Итого</span>
                   <strong>{formatKopecks(result.totalAmountKopecks)}</strong>
                 </article>
                 <article className="metric-card">
-                  <span className="metric-label">Trips</span>
+                  <span className="metric-label">Поездки</span>
                   <strong>{result.trips.length}</strong>
                 </article>
                 <article className="metric-card">
-                  <span className="metric-label">Charges</span>
+                  <span className="metric-label">Начисления</span>
                   <strong>{result.charges.length}</strong>
                 </article>
                 <article className="metric-card">
-                  <span className="metric-label">Warnings</span>
+                  <span className="metric-label">Предупреждения</span>
                   <strong>{result.warnings.length}</strong>
                 </article>
               </div>
 
               <div className="split-grid">
                 <article className="card">
-                  <h3>Trips Timeline</h3>
+                  <h3>Лента поездок</h3>
                   <ul className="timeline">
                     {result.trips.map((trip) => (
                       <li key={trip.tripId}>
@@ -495,9 +514,9 @@ export function App() {
                 </article>
 
                 <article className="card">
-                  <h3>Warnings</h3>
+                  <h3>Предупреждения</h3>
                   {result.warnings.length === 0 ? (
-                    <p className="empty-text">No warnings for this request.</p>
+                    <p className="empty-text">Предупреждений нет.</p>
                   ) : (
                     <ul className="warnings-list">
                       {result.warnings.map((warning) => (
@@ -512,18 +531,29 @@ export function App() {
               </div>
 
               <article className="card">
-                <h3>Charges Breakdown</h3>
+                <div className="result-controls">
+                  <h3>Начисления</h3>
+                  <label className="check-input">
+                    <input
+                      type="checkbox"
+                      checked={onlyPaidCharges}
+                      onChange={(event) => setOnlyPaidCharges(event.target.checked)}
+                    />
+                    Только платные начисления
+                  </label>
+                </div>
+
                 <table className="charges-table">
                   <thead>
                     <tr>
-                      <th>Charge Type</th>
-                      <th>Reason</th>
-                      <th>Validation</th>
-                      <th>Amount</th>
+                      <th>Тип</th>
+                      <th>Причина</th>
+                      <th>Validation ID</th>
+                      <th>Сумма</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {result.charges.map((charge) => (
+                    {visibleCharges.map((charge) => (
                       <tr key={charge.chargeId}>
                         <td>{charge.chargeType}</td>
                         <td>{charge.reason}</td>
@@ -537,19 +567,22 @@ export function App() {
             </>
           ) : (
             <div className="placeholder">
-              <p>Run calculation to see trips, charges, warnings, and detailed reasoning.</p>
+              <p>
+                Нажми «Рассчитать», чтобы увидеть поездки, начисления, предупреждения и итоговую
+                сумму.
+              </p>
             </div>
           )}
 
           {compare.length > 0 ? (
             <article className="card">
-              <h3>Payment Method Comparison</h3>
+              <h3>Сравнение способов оплаты</h3>
               <div className="compare-grid">
                 {compare.map((row) => (
                   <div key={row.paymentMethod} className="compare-item">
                     <span>{paymentMethodLabels[row.paymentMethod]}</span>
                     <strong>{formatKopecks(row.totalAmountKopecks)}</strong>
-                    <small>{row.warningCount} warnings</small>
+                    <small>Предупреждений: {row.warningCount}</small>
                   </div>
                 ))}
               </div>
