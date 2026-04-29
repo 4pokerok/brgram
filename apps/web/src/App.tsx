@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 type PaymentMethod = 'bank_card' | 'sbp' | 'virtual_troika' | 'face_pay'
 
@@ -41,22 +41,7 @@ type FareCalculationResult = {
   }>
 }
 
-type CompareResult = {
-  paymentMethod: PaymentMethod
-  totalAmountKopecks: number
-  warningCount: number
-}
-
 type ApiStatus = 'unknown' | 'up' | 'down'
-
-const paymentMethods: PaymentMethod[] = ['bank_card', 'sbp', 'virtual_troika', 'face_pay']
-
-const paymentMethodLabels: Record<PaymentMethod, string> = {
-  bank_card: 'Банковская карта',
-  sbp: 'СБП',
-  virtual_troika: 'Виртуальная Тройка',
-  face_pay: 'Face Pay'
-}
 
 const scenarios: Array<{ id: string; title: string; request: FareCalculationRequest }> = [
   {
@@ -229,11 +214,11 @@ async function callFareApi(
 export function App() {
   const [scenarioId, setScenarioId] = useState(scenarios[0].id)
   const [result, setResult] = useState<FareCalculationResult | null>(null)
-  const [compare, setCompare] = useState<CompareResult[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [apiStatus, setApiStatus] = useState<ApiStatus>('unknown')
   const [onlyPaidCharges, setOnlyPaidCharges] = useState(false)
+  const requestSequenceRef = useRef(0)
 
   const scenario = useMemo(
     () => scenarios.find((entry) => entry.id === scenarioId) ?? scenarios[0],
@@ -258,13 +243,17 @@ export function App() {
     }
   }
 
-  const calculateFare = async () => {
+  const calculateFare = async (request: FareCalculationRequest) => {
+    const requestSequence = ++requestSequenceRef.current
     setIsLoading(true)
     setError(null)
-    setCompare([])
 
     try {
-      const response = await callFareApi(scenario.request)
+      const response = await callFareApi(request)
+      if (requestSequence !== requestSequenceRef.current) {
+        return
+      }
+
       if (!response.ok) {
         setResult(null)
         setError(response.error)
@@ -272,52 +261,23 @@ export function App() {
       }
       setResult(response.data)
     } catch (unknownError) {
+      if (requestSequence !== requestSequenceRef.current) {
+        return
+      }
+
       const message = unknownError instanceof Error ? unknownError.message : 'Неизвестная ошибка'
       setResult(null)
       setError(message)
     } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const comparePaymentMethods = async () => {
-    setIsLoading(true)
-    setError(null)
-    setResult(null)
-
-    try {
-      const responses = await Promise.all(
-        paymentMethods.map((paymentMethod) =>
-          callFareApi({
-            ...scenario.request,
-            paymentMethod
-          })
-        )
-      )
-
-      const failed = responses.find((entry) => !entry.ok)
-      if (failed && !failed.ok) {
-        setCompare([])
-        setError(failed.error)
-        return
+      if (requestSequence === requestSequenceRef.current) {
+        setIsLoading(false)
       }
-
-      const rows = responses
-        .filter((entry): entry is { ok: true; data: FareCalculationResult } => entry.ok)
-        .map((entry) => ({
-          paymentMethod: entry.data.paymentMethod,
-          totalAmountKopecks: entry.data.totalAmountKopecks,
-          warningCount: entry.data.warnings.length
-        }))
-      setCompare(rows)
-    } catch (unknownError) {
-      const message = unknownError instanceof Error ? unknownError.message : 'Неизвестная ошибка'
-      setError(message)
-      setCompare([])
-    } finally {
-      setIsLoading(false)
     }
   }
+
+  useEffect(() => {
+    void calculateFare(scenario.request)
+  }, [scenarioId])
 
   return (
     <div className="layout clean-layout">
@@ -343,12 +303,6 @@ export function App() {
             <div className="button-row">
               <button className="action-button secondary" onClick={checkApi}>
                 Проверить API
-              </button>
-              <button className="action-button primary" onClick={calculateFare}>
-                {isLoading ? 'Считаем...' : 'Рассчитать'}
-              </button>
-              <button className="action-button" onClick={comparePaymentMethods}>
-                Сравнить оплату
               </button>
             </div>
 
@@ -454,24 +408,9 @@ export function App() {
             </>
           ) : (
             <div className="placeholder">
-              <p>Выбери сценарий и нажми «Рассчитать».</p>
+              <p>{isLoading ? 'Считаем тариф...' : 'Выбери сценарий для расчета.'}</p>
             </div>
           )}
-
-          {compare.length > 0 ? (
-            <article className="card">
-              <h3>Сравнение способов оплаты</h3>
-              <div className="compare-grid">
-                {compare.map((row) => (
-                  <div key={row.paymentMethod} className="compare-item">
-                    <span>{paymentMethodLabels[row.paymentMethod]}</span>
-                    <strong>{formatKopecks(row.totalAmountKopecks)}</strong>
-                    <small>Предупреждений: {row.warningCount}</small>
-                  </div>
-                ))}
-              </div>
-            </article>
-          ) : null}
         </section>
       </main>
     </div>

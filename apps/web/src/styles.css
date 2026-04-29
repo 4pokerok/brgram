@@ -130,10 +130,6 @@ button {
   background: #325a86;
 }
 
-.action-button.primary {
-  background: linear-gradient(135deg, #0f7ce6 0%, #0a63b5 100%);
-}
-
 .status-inline {
   font-size: 13px;
   color: var(--text-soft);
@@ -298,34 +294,6 @@ button {
   background: #f8fbff;
 }
 
-.compare-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.compare-item {
-  border: 1px solid var(--line-soft);
-  border-radius: 11px;
-  padding: 10px;
-  background: #fbfdff;
-  display: grid;
-  gap: 4px;
-}
-
-.compare-item span {
-  font-size: 12px;
-  color: var(--text-soft);
-}
-
-.compare-item strong {
-  font-size: 18px;
-}
-
-.compare-item small {
-  color: var(--text-soft);
-}
-
 @media (max-width: 860px) {
   .content {
     padding: 16px 10px;
@@ -336,10 +304,6 @@ button {
   }
 
   .split-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .compare-grid {
     grid-template-columns: 1fr;
   }
 }
