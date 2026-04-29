@@ -328,16 +328,17 @@ export function App() {
           </div>
 
           <div className="top-controls">
-            <label className="field">
-              <span>Сценарий</span>
-              <select value={scenarioId} onChange={(event) => setScenarioId(event.target.value)}>
-                {scenarios.map((entry) => (
-                  <option value={entry.id} key={entry.id}>
-                    {entry.title}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="scenario-row">
+              {scenarios.map((entry) => (
+                <button
+                  key={entry.id}
+                  className={entry.id === scenarioId ? 'scenario-button active' : 'scenario-button'}
+                  onClick={() => setScenarioId(entry.id)}
+                >
+                  {entry.title}
+                </button>
+              ))}
+            </div>
 
             <div className="button-row">
               <button className="action-button secondary" onClick={checkApi}>
@@ -377,7 +378,7 @@ export function App() {
                   <strong>{result.charges.length}</strong>
                 </article>
                 <article className="metric-card">
-                  <span className="metric-label">Warnings</span>
+                  <span className="metric-label">Предупреждения</span>
                   <strong>{result.warnings.length}</strong>
                 </article>
               </div>
