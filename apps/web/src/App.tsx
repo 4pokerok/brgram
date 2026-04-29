@@ -53,6 +53,59 @@ const chargeTypeLabels: Record<string, string> = {
   adjustment: 'Корректировка'
 }
 
+const fareTypeLabels: Record<string, string> = {
+  single_ride: 'Одиночная поездка',
+  transfer_window: 'Пересадочное окно',
+  transfer_window_with_region_surcharge: 'Пересадка с доплатой за область',
+  region_to_moscow_with_free_metro_transfer: 'Область -> Москва с бесплатным метро',
+  mcd_pair: 'Пара МЦД (вход-выход)',
+  mcd_auto_completed_pair: 'Автодополненная пара МЦД',
+  unknown: 'Неизвестный тип поездки'
+}
+
+const warningTranslations: Record<string, { title: string; message: string }> = {
+  DECLINED_VALIDATION_IGNORED: {
+    title: 'Отклоненная валидация пропущена',
+    message: 'Событие со статусом declined исключено из расчета.'
+  },
+  DUPLICATE_VALIDATION_IGNORED: {
+    title: 'Дубликат валидации пропущен',
+    message: 'Повторное событие не участвует в расчете.'
+  },
+  EVENT_OUTSIDE_REQUEST_TRANSPORT_DATE: {
+    title: 'Событие вне транспортных суток',
+    message: 'Событие относится к другим транспортным суткам.'
+  },
+  MCD_PAIR_AUTO_COMPLETED: {
+    title: 'Пара МЦД автодополнена',
+    message: 'Отсутствующая операция входа/выхода МЦД была добавлена автоматически.'
+  },
+  MCD_PAIR_BROKE_TRANSFER_CHAIN: {
+    title: 'Цепочка пересадок прервана',
+    message: 'Из-за неполной пары МЦД бесплатная цепочка пересадок завершена.'
+  },
+  UNSUPPORTED_CPPK_TRAIN_SURCHARGE_7000: {
+    title: 'Доплата ЦППК 7000 не поддержана',
+    message: 'Автотарификация для типа ЦППК 4 не выполняется, нужна ручная обработка.'
+  },
+  DP_VALIDATION_TYPE_FILTERED_OR_UNSUPPORTED: {
+    title: 'Операция дальнего пригорода пропущена',
+    message: 'Тип валидации ДП не поддержан для автоматического расчета.'
+  },
+  TRANSPORT_DAY_BOUNDARY_SPLIT: {
+    title: 'Разрыв по транспортным суткам',
+    message: 'Окно пересадки разорвано из-за перехода на новые транспортные сутки.'
+  },
+  DUPLICATED_LINK_STARTED_NEW_WINDOW: {
+    title: 'Повторное звено открыло новое окно',
+    message: 'Дублирующее транспортное звено начало новую поездку.'
+  },
+  CPPK_VALIDATION_TYPE_IGNORED_FOR_NON_CPPK_CARRIER: {
+    title: 'Тип ЦППК проигнорирован',
+    message: 'Поле cppkValidationType получено не от ЦППК/МТППК и не учитывается.'
+  }
+}
+
 const scenarios: Array<{ id: string; title: string; request: FareCalculationRequest }> = [
   {
     id: 'region-exit',
@@ -202,6 +255,18 @@ function formatKopecks(value: number): string {
 
 function getChargeTypeLabel(chargeType: string): string {
   return chargeTypeLabels[chargeType] ?? chargeType
+}
+
+function getFareTypeLabel(fareType: string): string {
+  return fareTypeLabels[fareType] ?? fareType
+}
+
+function getWarningTitle(code: string): string {
+  return warningTranslations[code]?.title ?? code
+}
+
+function getWarningMessage(code: string, fallbackMessage: string): string {
+  return warningTranslations[code]?.message ?? fallbackMessage
 }
 
 async function callFareApi(
@@ -358,7 +423,7 @@ export function App() {
                     {result.trips.map((trip) => (
                       <li key={trip.tripId}>
                         <div className="timeline-top">
-                          <strong>{trip.fareType}</strong>
+                          <strong>{getFareTypeLabel(trip.fareType)}</strong>
                           <span>{formatKopecks(trip.amountKopecks)}</span>
                         </div>
                         <div className="timeline-meta">
@@ -377,8 +442,8 @@ export function App() {
                     <ul className="warnings-list">
                       {result.warnings.map((warning) => (
                         <li key={`${warning.code}-${warning.validationId ?? ''}`}>
-                          <strong>{warning.code}</strong>
-                          <p>{warning.message}</p>
+                          <strong>{getWarningTitle(warning.code)}</strong>
+                          <p>{getWarningMessage(warning.code, warning.message)}</p>
                         </li>
                       ))}
                     </ul>
