@@ -45,6 +45,10 @@ textarea {
   grid-template-columns: 320px 1fr;
 }
 
+.clean-layout {
+  grid-template-columns: 1fr;
+}
+
 .sidebar {
   border-right: 1px solid var(--line-main);
   padding: 24px 20px;
@@ -178,6 +182,13 @@ textarea {
   overflow: auto;
 }
 
+.single-column {
+  grid-template-columns: 1fr;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
 .panel {
   background: var(--bg-panel);
   border: 1px solid var(--line-main);
@@ -192,6 +203,41 @@ textarea {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+}
+
+.top-controls {
+  margin: 14px 18px 0;
+  display: grid;
+  gap: 10px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field span {
+  font-size: 12px;
+  color: var(--text-soft);
+  font-weight: 700;
+}
+
+.field select {
+  border: 1px solid var(--line-main);
+  border-radius: 10px;
+  padding: 10px;
+  background: #fff;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.status-inline {
+  font-size: 13px;
+  color: var(--text-soft);
 }
 
 .panel h2 {
@@ -276,6 +322,10 @@ textarea {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
+}
+
+.compact-grid {
+  margin-top: 12px;
 }
 
 .metric-card {

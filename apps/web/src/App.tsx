@@ -24,13 +24,11 @@ type FareCalculationResult = {
     windowStart: string
     windowEnd: string
     carriers: string[]
-    zones: string[]
     amountKopecks: number
     fareType: string
   }>
   charges: Array<{
     chargeId: string
-    tripId: string
     validationId: string
     amountKopecks: number
     chargeType: string
@@ -207,14 +205,6 @@ function formatKopecks(value: number): string {
   return `${(value / 100).toFixed(2)} ₽`
 }
 
-function tryParseRequest(json: string): FareCalculationRequest | null {
-  try {
-    return JSON.parse(json) as FareCalculationRequest
-  } catch {
-    return null
-  }
-}
-
 async function callFareApi(
   request: FareCalculationRequest
 ): Promise<{ ok: true; data: FareCalculationResult } | { ok: false; error: string }> {
@@ -237,26 +227,26 @@ async function callFareApi(
 }
 
 export function App() {
-  const [activeScenarioId, setActiveScenarioId] = useState(scenarios[0].id)
-  const [requestText, setRequestText] = useState(JSON.stringify(scenarios[0].request, null, 2))
+  const [scenarioId, setScenarioId] = useState(scenarios[0].id)
   const [result, setResult] = useState<FareCalculationResult | null>(null)
   const [compare, setCompare] = useState<CompareResult[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [apiStatus, setApiStatus] = useState<ApiStatus>('unknown')
   const [onlyPaidCharges, setOnlyPaidCharges] = useState(false)
-  const [copyMessage, setCopyMessage] = useState('')
 
-  const parsedRequest = useMemo(() => tryParseRequest(requestText), [requestText])
+  const scenario = useMemo(
+    () => scenarios.find((entry) => entry.id === scenarioId) ?? scenarios[0],
+    [scenarioId]
+  )
 
   const visibleCharges = useMemo(() => {
     if (!result) {
       return []
     }
-    if (!onlyPaidCharges) {
-      return result.charges
-    }
-    return result.charges.filter((charge) => charge.amountKopecks > 0)
+    return onlyPaidCharges
+      ? result.charges.filter((charge) => charge.amountKopecks > 0)
+      : result.charges
   }, [onlyPaidCharges, result])
 
   const checkApi = async () => {
@@ -268,89 +258,56 @@ export function App() {
     }
   }
 
-  const loadScenario = (scenarioId: string) => {
-    const scenario = scenarios.find((entry) => entry.id === scenarioId)
-    if (!scenario) {
-      return
-    }
-
-    setActiveScenarioId(scenario.id)
-    setRequestText(JSON.stringify(scenario.request, null, 2))
-    setResult(null)
-    setCompare([])
-    setError(null)
-  }
-
-  const formatJson = () => {
-    if (!parsedRequest) {
-      setError('JSON невалидный. Сначала исправь синтаксис.')
-      return
-    }
-    setRequestText(JSON.stringify(parsedRequest, null, 2))
-    setError(null)
-  }
-
   const calculateFare = async () => {
-    if (!parsedRequest) {
-      setError('JSON невалидный. Нельзя отправить запрос.')
-      return
-    }
-
     setIsLoading(true)
     setError(null)
     setCompare([])
 
     try {
-      const response = await callFareApi(parsedRequest)
+      const response = await callFareApi(scenario.request)
       if (!response.ok) {
-        setError(response.error)
         setResult(null)
+        setError(response.error)
         return
       }
-
       setResult(response.data)
     } catch (unknownError) {
       const message = unknownError instanceof Error ? unknownError.message : 'Неизвестная ошибка'
-      setError(message)
       setResult(null)
+      setError(message)
     } finally {
       setIsLoading(false)
     }
   }
 
   const comparePaymentMethods = async () => {
-    if (!parsedRequest) {
-      setError('JSON невалидный. Нельзя запустить сравнение.')
-      return
-    }
-
     setIsLoading(true)
     setError(null)
     setResult(null)
 
     try {
-      const results = await Promise.all(
+      const responses = await Promise.all(
         paymentMethods.map((paymentMethod) =>
           callFareApi({
-            ...parsedRequest,
+            ...scenario.request,
             paymentMethod
           })
         )
       )
 
-      const failed = results.find((item) => !item.ok)
+      const failed = responses.find((entry) => !entry.ok)
       if (failed && !failed.ok) {
         setCompare([])
         setError(failed.error)
         return
       }
 
-      const rows = results
-        .filter((item): item is { ok: true; data: FareCalculationResult } => item.ok)
-        .map((item) => ({
-          paymentMethod: item.data.paymentMethod,
-          totalAmountKopecks: item.data.totalAmountKopecks,
-          warningCount: item.data.warnings.length
+      const rows = responses
+        .filter((entry): entry is { ok: true; data: FareCalculationResult } => entry.ok)
+        .map((entry) => ({
+          paymentMethod: entry.data.paymentMethod,
+          totalAmountKopecks: entry.data.totalAmountKopecks,
+          warningCount: entry.data.warnings.length
         }))
       setCompare(rows)
     } catch (unknownError) {
@@ -362,114 +319,51 @@ export function App() {
     }
   }
 
-  const copyResultJson = async () => {
-    if (!result) {
-      return
-    }
-
-    try {
-      await navigator.clipboard.writeText(JSON.stringify(result, null, 2))
-      setCopyMessage('Результат скопирован')
-      window.setTimeout(() => {
-        setCopyMessage('')
-      }, 1500)
-    } catch {
-      setCopyMessage('Не удалось скопировать')
-      window.setTimeout(() => {
-        setCopyMessage('')
-      }, 1500)
-    }
-  }
-
   return (
-    <div className="layout">
-      <aside className="sidebar">
-        <h1>Тарифный Playground</h1>
-        <p className="sidebar-subtitle">
-          Быстрый интерфейс для проверки `calculateFare`: загрузи сценарий, посмотри поездки,
-          начисления и предупреждения.
-        </p>
-
-        <div className="status-card">
-          <span className={`status-dot status-${apiStatus}`} />
-          <div>
-            <div className="status-title">Статус API</div>
-            <div className="status-value">
-              {apiStatus === 'unknown' && 'не проверен'}
-              {apiStatus === 'up' && 'API доступен'}
-              {apiStatus === 'down' && 'API недоступен'}
-            </div>
+    <div className="layout clean-layout">
+      <main className="content single-column">
+        <section className="panel">
+          <div className="panel-header">
+            <h2>Калькулятор тарифа</h2>
           </div>
-        </div>
 
-        <div className="section">
-          <div className="section-title">Сценарии</div>
-          <div className="sample-list">
-            {scenarios.map((scenario) => (
-              <button
-                key={scenario.id}
-                className={
-                  scenario.id === activeScenarioId ? 'sample-button active' : 'sample-button'
-                }
-                onClick={() => loadScenario(scenario.id)}
-              >
-                {scenario.title}
+          <div className="top-controls">
+            <label className="field">
+              <span>Сценарий</span>
+              <select value={scenarioId} onChange={(event) => setScenarioId(event.target.value)}>
+                {scenarios.map((entry) => (
+                  <option value={entry.id} key={entry.id}>
+                    {entry.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="button-row">
+              <button className="action-button secondary" onClick={checkApi}>
+                Проверить API
               </button>
-            ))}
-          </div>
-        </div>
+              <button className="action-button primary" onClick={calculateFare}>
+                {isLoading ? 'Считаем...' : 'Рассчитать'}
+              </button>
+              <button className="action-button" onClick={comparePaymentMethods}>
+                Сравнить оплату
+              </button>
+            </div>
 
-        <div className="section">
-          <div className="section-title">Действия</div>
-          <button className="action-button secondary" onClick={checkApi}>
-            Проверить API
-          </button>
-          <button className="action-button secondary" onClick={formatJson}>
-            Форматировать JSON
-          </button>
-          <button className="action-button primary" onClick={calculateFare}>
-            {isLoading ? 'Считаем...' : 'Рассчитать'}
-          </button>
-          <button className="action-button" onClick={comparePaymentMethods}>
-            Сравнить способы оплаты
-          </button>
-        </div>
-      </aside>
-
-      <main className="content">
-        <section className="panel request-panel">
-          <div className="panel-header">
-            <h2>Запрос FareCalculationRequest</h2>
-            <span className={parsedRequest ? 'json-state valid' : 'json-state invalid'}>
-              {parsedRequest ? 'JSON корректен' : 'Ошибка JSON'}
-            </span>
-          </div>
-          <textarea
-            className="json-editor"
-            value={requestText}
-            onChange={(event) => setRequestText(event.target.value)}
-            spellCheck={false}
-          />
-        </section>
-
-        <section className="panel result-panel">
-          <div className="panel-header">
-            <h2>Результат расчёта</h2>
-            {result ? (
-              <div className="panel-actions">
-                <button className="copy-button" onClick={copyResultJson}>
-                  Скопировать JSON
-                </button>
-                {copyMessage ? <span className="copy-message">{copyMessage}</span> : null}
-              </div>
-            ) : null}
+            <div className="status-inline">
+              API:{' '}
+              {apiStatus === 'unknown' && 'не проверен'}
+              {apiStatus === 'up' && 'доступен'}
+              {apiStatus === 'down' && 'недоступен'}
+            </div>
           </div>
 
           {error ? <div className="error-banner">{error}</div> : null}
 
           {result ? (
             <>
-              <div className="metrics-grid">
+              <div className="metrics-grid compact-grid">
                 <article className="metric-card">
                   <span className="metric-label">Итого</span>
                   <strong>{formatKopecks(result.totalAmountKopecks)}</strong>
@@ -483,14 +377,14 @@ export function App() {
                   <strong>{result.charges.length}</strong>
                 </article>
                 <article className="metric-card">
-                  <span className="metric-label">Предупреждения</span>
+                  <span className="metric-label">Warnings</span>
                   <strong>{result.warnings.length}</strong>
                 </article>
               </div>
 
               <div className="split-grid">
                 <article className="card">
-                  <h3>Лента поездок</h3>
+                  <h3>Поездки</h3>
                   <ul className="timeline">
                     {result.trips.map((trip) => (
                       <li key={trip.tripId}>
@@ -500,13 +394,6 @@ export function App() {
                         </div>
                         <div className="timeline-meta">
                           {trip.windowStart} → {trip.windowEnd}
-                        </div>
-                        <div className="chip-row">
-                          {trip.carriers.map((carrier) => (
-                            <span key={`${trip.tripId}-${carrier}`} className={`chip carrier-${carrier}`}>
-                              {carrier}
-                            </span>
-                          ))}
                         </div>
                       </li>
                     ))}
@@ -539,16 +426,15 @@ export function App() {
                       checked={onlyPaidCharges}
                       onChange={(event) => setOnlyPaidCharges(event.target.checked)}
                     />
-                    Только платные начисления
+                    Только платные
                   </label>
                 </div>
-
                 <table className="charges-table">
                   <thead>
                     <tr>
                       <th>Тип</th>
                       <th>Причина</th>
-                      <th>Validation ID</th>
+                      <th>ID</th>
                       <th>Сумма</th>
                     </tr>
                   </thead>
@@ -567,10 +453,7 @@ export function App() {
             </>
           ) : (
             <div className="placeholder">
-              <p>
-                Нажми «Рассчитать», чтобы увидеть поездки, начисления, предупреждения и итоговую
-                сумму.
-              </p>
+              <p>Выбери сценарий и нажми «Рассчитать».</p>
             </div>
           )}
 
