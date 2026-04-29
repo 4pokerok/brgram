@@ -43,6 +43,16 @@ type FareCalculationResult = {
 
 type ApiStatus = 'unknown' | 'up' | 'down'
 
+const chargeTypeLabels: Record<string, string> = {
+  base_fare: 'Базовый тариф',
+  free_transfer: 'Бесплатная пересадка',
+  region_surcharge: 'Доплата за выезд в область',
+  mcd_entry_included: 'Вход МЦД включен в окно',
+  mcd_exit_completion: 'Автозавершение выхода МЦД',
+  mcd_entry_completion: 'Автодобавление входа МЦД',
+  adjustment: 'Корректировка'
+}
+
 const scenarios: Array<{ id: string; title: string; request: FareCalculationRequest }> = [
   {
     id: 'region-exit',
@@ -188,6 +198,10 @@ const scenarios: Array<{ id: string; title: string; request: FareCalculationRequ
 
 function formatKopecks(value: number): string {
   return `${(value / 100).toFixed(2)} ₽`
+}
+
+function getChargeTypeLabel(chargeType: string): string {
+  return chargeTypeLabels[chargeType] ?? chargeType
 }
 
 async function callFareApi(
@@ -396,7 +410,7 @@ export function App() {
                   <tbody>
                     {visibleCharges.map((charge) => (
                       <tr key={charge.chargeId}>
-                        <td>{charge.chargeType}</td>
+                        <td>{getChargeTypeLabel(charge.chargeType)}</td>
                         <td>{charge.reason}</td>
                         <td>{charge.validationId}</td>
                         <td>{formatKopecks(charge.amountKopecks)}</td>
