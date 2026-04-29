@@ -11,7 +11,13 @@ function buildMessageKey(request: FareCalculationRequest): string {
   return `${request.passengerKey}:${request.transportDate}`
 }
 
-async function runWorker(): Promise<void> {
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+async function runWorkerOnce(stopRequestedRef: { value: boolean }): Promise<void> {
   const consumer = createConsumer()
   const producer = createProducer()
 
@@ -81,13 +87,11 @@ async function runWorker(): Promise<void> {
 
   console.log('fare-worker is running')
 
-  let isShuttingDown = false
-
   const shutdown = async (signal: string): Promise<void> => {
-    if (isShuttingDown) {
+    if (stopRequestedRef.value) {
       return
     }
-    isShuttingDown = true
+    stopRequestedRef.value = true
 
     console.log(`fare-worker is shutting down (${signal})`)
 
@@ -112,12 +116,8 @@ async function runWorker(): Promise<void> {
     process.exit(0)
   }
 
-  process.once('SIGINT', () => {
-    void shutdown('SIGINT')
-  })
-  process.once('SIGTERM', () => {
-    void shutdown('SIGTERM')
-  })
+  process.once('SIGINT', () => void shutdown('SIGINT'))
+  process.once('SIGTERM', () => void shutdown('SIGTERM'))
 
   // Keep process in foreground as a long-running worker.
   await new Promise<void>(() => {
@@ -125,7 +125,21 @@ async function runWorker(): Promise<void> {
   })
 }
 
-runWorker().catch((error: unknown) => {
-  console.error('fare-worker failed to start', error)
-  process.exit(1)
-})
+async function runWorker(): Promise<void> {
+  const stopRequestedRef = { value: false }
+  const restartDelayMs = Number(process.env.WORKER_RESTART_DELAY_MS ?? 5000)
+
+  while (!stopRequestedRef.value) {
+    try {
+      await runWorkerOnce(stopRequestedRef)
+    } catch (error) {
+      if (stopRequestedRef.value) {
+        break
+      }
+      console.error('fare-worker failed to start, retrying...', error)
+      await sleep(restartDelayMs)
+    }
+  }
+}
+
+void runWorker()
