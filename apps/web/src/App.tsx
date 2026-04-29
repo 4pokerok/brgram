@@ -385,7 +385,15 @@ export function App() {
       <main className="content single-column">
         <section className="panel">
           <div className="panel-header">
-            <h2>Калькулятор тарифа</h2>
+            <div className="panel-header-row">
+              <h2>Калькулятор тарифа</h2>
+              <button
+                className="action-button secondary theme-toggle"
+                onClick={() => setTheme((current) => (current === 'light' ? 'dark' : 'light'))}
+              >
+                {theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+              </button>
+            </div>
           </div>
 
           <div className="top-controls">
@@ -404,12 +412,6 @@ export function App() {
             <div className="button-row">
               <button className="action-button secondary" onClick={checkApi}>
                 Проверить API
-              </button>
-              <button
-                className="action-button secondary theme-toggle"
-                onClick={() => setTheme((current) => (current === 'light' ? 'dark' : 'light'))}
-              >
-                {theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
               </button>
             </div>
 

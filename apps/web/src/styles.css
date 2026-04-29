@@ -105,6 +105,13 @@ button {
   padding: 22px 24px 12px;
 }
 
+.panel-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .panel h2 {
   margin: 0;
   font-size: 28px;
@@ -336,7 +343,8 @@ button {
 }
 
 .theme-toggle {
-  min-width: 132px;
+  min-width: 142px;
+  align-self: flex-start;
 }
 
 @media (max-width: 860px) {
@@ -350,6 +358,16 @@ button {
 
   .panel h2 {
     font-size: 24px;
+  }
+
+  .panel-header-row {
+    align-items: center;
+  }
+
+  .theme-toggle {
+    min-width: 126px;
+    padding: 10px 12px;
+    font-size: 13px;
   }
 
   .top-controls {
