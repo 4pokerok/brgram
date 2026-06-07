@@ -1,774 +1,731 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
-type PaymentMethod = 'bank_card' | 'sbp' | 'virtual_troika' | 'face_pay'
-
-type FareCalculationRequest = {
-  requestId: string
-  tariffVersion?: string
-  passengerKey: string
-  transportDate: string
-  paymentMethod: PaymentMethod
-  validations: Array<Record<string, unknown>>
+type Product = {
+  id: string
+  title: string
+  section: string
+  image: string
+  sourceUrl: string
+  description: string
+  momBenefit: string
+  familyUse: string
+  components: string[]
+  tags: string[]
 }
 
-type FareCalculationResult = {
-  requestId: string
-  passengerKey: string
-  transportDate: string
-  tariffVersion: string
-  paymentMethod: PaymentMethod
-  currency: 'RUB'
-  totalAmountKopecks: number
-  trips: Array<{
-    tripId: string
-    windowStart: string
-    windowEnd: string
-    carriers: string[]
-    amountKopecks: number
-    fareType: string
-  }>
-  charges: Array<{
-    chargeId: string
-    validationId: string
-    amountKopecks: number
-    chargeType: string
-    reason: string
-  }>
-  warnings: Array<{
-    code: string
-    message: string
-    validationId?: string
-  }>
+type Scenario = {
+  id: string
+  label: string
+  title: string
+  intro: string
+  productIds: string[]
 }
 
-type ValidationFeedItem = {
-  validationId: string
-  eventTime: string
-  passengerKey: string
-  carrier: string
-  mode: string
-  eventType: string
-  status: string
-  zone: string
-  transportDate?: string
-  topic: string
-  partition: number
-  offset: string
+type Page = 'home' | 'catalog' | 'info'
+
+type CatalogProduct = {
+  title: string
+  sourceUrl: string
+  image: string
+  section: string
+  description: string
+  forWhat: string
+  components: string[]
+  benefits: string[]
 }
 
-type ValidationFeedResponse = {
-  sourceTopic: string
-  connected: boolean
-  lastError?: string
-  lastMessageAt?: string
-  count: number
-  items: ValidationFeedItem[]
-}
-
-type ApiStatus = 'unknown' | 'up' | 'down'
-type ThemeMode = 'light' | 'dark'
-
-const THEME_STORAGE_KEY = 'fare-ui-theme'
-
-const chargeTypeLabels: Record<string, string> = {
-  base_fare: 'Базовый тариф',
-  free_transfer: 'Бесплатная пересадка',
-  region_surcharge: 'Доплата за выезд в область',
-  mcd_entry_included: 'Вход МЦД включен в окно',
-  mcd_exit_completion: 'Автозавершение выхода МЦД',
-  mcd_entry_completion: 'Автодобавление входа МЦД',
-  adjustment: 'Корректировка'
-}
-
-const chargeReasonLabels: Record<string, string> = {
-  BASE_FARE: 'Базовый тариф',
-  FREE_TRANSFER_WITHIN_90_MINUTES: 'Бесплатная пересадка в пределах 90 минут',
-  METRO_TO_MGT_FREE_TRANSFER: 'Бесплатная пересадка метро -> МГТ',
-  MGT_TO_METRO_FREE_TRANSFER: 'Бесплатная пересадка МГТ -> метро',
-  METRO_TO_MCK_FREE_TRANSFER: 'Бесплатная пересадка метро -> МЦК',
-  MCK_TO_METRO_FREE_TRANSFER: 'Бесплатная пересадка МЦК -> метро',
-  MCD_ENTRY_INCLUDED_IN_WINDOW: 'Вход МЦД включен в текущее окно',
-  MCD_EXIT_COMPLETION: 'Автозавершение выхода МЦД',
-  MCD_ENTRY_COMPLETION: 'Автодобавление входа МЦД',
-  MCD_PAIR_AUTO_COMPLETED_BY_CARRIER: 'Пара МЦД автозакрыта перевозчиком',
-  MCD_PAIR_AUTO_COMPLETED_BY_FARE_CORE: 'Пара МЦД автозакрыта движком тарифа',
-  MOSCOW_TO_REGION_EXIT_SURCHARGE: 'Доплата за выезд из Москвы в область',
-  REGION_TO_MOSCOW_FREE_METRO_TRANSFER: 'Бесплатная пересадка на метро после въезда в Москву',
-  SAME_CARRIER_NEW_WINDOW: 'Новое окно из-за повторного перевозчика',
-  WINDOW_EXPIRED: 'Пересадочное окно истекло',
-  TRANSPORT_DAY_BOUNDARY: 'Граница транспортных суток',
-  DUPLICATED_LINK_NEW_WINDOW: 'Новое окно из-за дублирования звена',
-  UNSUPPORTED_CPPK_TRAIN_SURCHARGE_7000: 'Доплата ЦППК 7000 требует ручной обработки'
-}
-
-const fareTypeLabels: Record<string, string> = {
-  single_ride: 'Одиночная поездка',
-  transfer_window: 'Пересадочное окно',
-  transfer_window_with_region_surcharge: 'Пересадка с доплатой за область',
-  region_to_moscow_with_free_metro_transfer: 'Область -> Москва с бесплатным метро',
-  mcd_pair: 'Пара МЦД (вход-выход)',
-  mcd_auto_completed_pair: 'Автодополненная пара МЦД',
-  unknown: 'Неизвестный тип поездки'
-}
-
-const eventTypeLabels: Record<string, string> = {
-  entry: 'Вход',
-  exit: 'Выход',
-  onboard: 'Посадка',
-  unknown: 'Неизвестно'
-}
-
-const validationStatusLabels: Record<string, string> = {
-  accepted: 'Принято',
-  declined: 'Отклонено',
-  unknown: 'Неизвестно'
-}
-
-const carrierLabels: Record<string, string> = {
-  metro: 'Метро',
-  mck: 'МЦК',
-  mgt: 'МГТ',
-  cppk: 'ЦППК',
-  mtppk: 'МТППК',
-  unknown: 'Неизвестно'
-}
-
-const modeLabels: Record<string, string> = {
-  metro: 'Метро',
-  mck: 'МЦК',
-  mgt: 'МГТ',
-  cppk: 'ЦППК',
-  mtppk: 'МТППК',
-  unknown: 'Неизвестно'
-}
-
-const zoneLabels: Record<string, string> = {
-  moscow: 'Москва',
-  moscow_region: 'Московская область',
-  unknown: 'Неизвестно'
-}
-
-const warningTranslations: Record<string, { title: string; message: string }> = {
-  DECLINED_VALIDATION_IGNORED: {
-    title: 'Отклоненная валидация пропущена',
-    message: 'Событие со статусом declined исключено из расчета.'
-  },
-  DUPLICATE_VALIDATION_IGNORED: {
-    title: 'Дубликат валидации пропущен',
-    message: 'Повторное событие не участвует в расчете.'
-  },
-  EVENT_OUTSIDE_REQUEST_TRANSPORT_DATE: {
-    title: 'Событие вне транспортных суток',
-    message: 'Событие относится к другим транспортным суткам.'
-  },
-  MCD_PAIR_AUTO_COMPLETED: {
-    title: 'Пара МЦД автодополнена',
-    message: 'Отсутствующая операция входа/выхода МЦД была добавлена автоматически.'
-  },
-  MCD_PAIR_BROKE_TRANSFER_CHAIN: {
-    title: 'Цепочка пересадок прервана',
-    message: 'Из-за неполной пары МЦД бесплатная цепочка пересадок завершена.'
-  },
-  UNSUPPORTED_CPPK_TRAIN_SURCHARGE_7000: {
-    title: 'Доплата ЦППК 7000 не поддержана',
-    message: 'Автотарификация для типа ЦППК 4 не выполняется, нужна ручная обработка.'
-  },
-  DP_VALIDATION_TYPE_FILTERED_OR_UNSUPPORTED: {
-    title: 'Операция дальнего пригорода пропущена',
-    message: 'Тип валидации ДП не поддержан для автоматического расчета.'
-  },
-  TRANSPORT_DAY_BOUNDARY_SPLIT: {
-    title: 'Разрыв по транспортным суткам',
-    message: 'Окно пересадки разорвано из-за перехода на новые транспортные сутки.'
-  },
-  DUPLICATED_LINK_STARTED_NEW_WINDOW: {
-    title: 'Повторное звено открыло новое окно',
-    message: 'Дублирующее транспортное звено начало новую поездку.'
-  },
-  CPPK_VALIDATION_TYPE_IGNORED_FOR_NON_CPPK_CARRIER: {
-    title: 'Тип ЦППК проигнорирован',
-    message: 'Поле cppkValidationType получено не от ЦППК/МТППК и не учитывается.'
-  }
-}
-
-const scenarios: Array<{ id: string; title: string; request: FareCalculationRequest }> = [
+const products: Product[] = [
   {
-    id: 'region-exit',
-    title: 'Москва → область (доплата)',
-    request: {
-      requestId: 'req-region-exit-1',
-      passengerKey: 'pax-5',
-      transportDate: '2026-04-28',
-      paymentMethod: 'bank_card',
-      validations: [
-        {
-          validationId: 'v1',
-          eventTime: '2026-04-28T08:00:00+03:00',
-          status: 'accepted',
-          eventType: 'entry',
-          mode: 'metro',
-          carrier: 'metro',
-          zone: 'moscow'
-        },
-        {
-          validationId: 'v2',
-          eventTime: '2026-04-28T08:30:00+03:00',
-          status: 'accepted',
-          eventType: 'onboard',
-          mode: 'mgt',
-          carrier: 'mgt',
-          zone: 'moscow'
-        },
-        {
-          validationId: 'v3',
-          eventTime: '2026-04-28T08:50:00+03:00',
-          status: 'accepted',
-          eventType: 'entry',
-          mode: 'cppk',
-          carrier: 'cppk',
-          zone: 'moscow',
-          lineId: 'd1',
-          cppkValidationType: 0
-        },
-        {
-          validationId: 'v4',
-          eventTime: '2026-04-28T09:10:00+03:00',
-          status: 'accepted',
-          eventType: 'exit',
-          mode: 'cppk',
-          carrier: 'cppk',
-          zone: 'moscow_region',
-          lineId: 'd1',
-          cppkValidationType: 1
-        }
-      ]
-    }
+    id: 'tentorium-plus',
+    title: 'Тенториум Плюс',
+    section: 'Драже',
+    image: 'https://tentorium.ru/media/storage/f52/130/group-4259-1.png',
+    sourceUrl: 'https://tentorium.ru/ref/2065353/product/tentorium-plius-300-g',
+    description: 'Базовое драже с пыльцой, прополисом и воском для ежедневной поддержки рациона.',
+    momBenefit: 'Подойдет как спокойная основа на каждый день, когда нужен мягкий тонус без сложной схемы.',
+    familyUse: 'Удобный формат для семейной полки: видно состав и легко объяснить, для какой задачи продукт выбирают.',
+    components: ['Пыльца', 'Прополис', 'Пчелиный воск'],
+    tags: ['Ежедневная поддержка', 'Тонус', 'Иммунный сезон']
   },
   {
-    id: 'region-to-moscow',
-    title: 'Область → Москва → метро',
-    request: {
-      requestId: 'req-region-to-moscow-1',
-      passengerKey: 'pax-6',
-      transportDate: '2026-04-28',
-      paymentMethod: 'bank_card',
-      validations: [
-        {
-          validationId: 'v1',
-          eventTime: '2026-04-28T08:00:00+03:00',
-          status: 'accepted',
-          eventType: 'entry',
-          mode: 'cppk',
-          carrier: 'cppk',
-          zone: 'moscow_region',
-          lineId: 'd1',
-          cppkValidationType: 0
-        },
-        {
-          validationId: 'v2',
-          eventTime: '2026-04-28T08:40:00+03:00',
-          status: 'accepted',
-          eventType: 'exit',
-          mode: 'cppk',
-          carrier: 'cppk',
-          zone: 'moscow',
-          lineId: 'd1',
-          cppkValidationType: 1
-        },
-        {
-          validationId: 'v3',
-          eventTime: '2026-04-28T08:55:00+03:00',
-          status: 'accepted',
-          eventType: 'entry',
-          mode: 'metro',
-          carrier: 'metro',
-          zone: 'moscow'
-        }
-      ]
-    }
+    id: 'apibalm-1',
+    title: 'Апибальзам 1',
+    section: 'Бальзамы',
+    image: 'https://tentorium.ru/media/storage/45d/4dd/group-4242.png',
+    sourceUrl: 'https://tentorium.ru/ref/2065353/product/apibalzam-1-100-ml',
+    description: 'Масляный бальзам с прополисом, который мягко обволакивает слизистые.',
+    momBenefit: 'Хорош для моментов, когда у мамы много разговоров, садик, школа, поездки и нужен комфорт для горла.',
+    familyUse: 'Можно держать как продукт направленного ухода для ЛОР-зоны и полости рта.',
+    components: ['Прополис', 'Пчелиный воск', 'Масляная основа'],
+    tags: ['Горло', 'Полость рта', 'Комфорт']
   },
   {
-    id: 'cppk-types',
-    title: 'Типы валидаций ЦППК',
-    request: {
-      requestId: 'req-cppk-types-1',
-      passengerKey: 'pax-7',
-      transportDate: '2026-04-28',
-      paymentMethod: 'bank_card',
-      validations: [
-        {
-          validationId: 'v1',
-          eventTime: '2026-04-28T08:00:00+03:00',
-          status: 'accepted',
-          eventType: 'entry',
-          mode: 'cppk',
-          carrier: 'cppk',
-          zone: 'moscow',
-          lineId: 'd1',
-          cppkValidationType: 0
-        },
-        {
-          validationId: 'v2',
-          eventTime: '2026-04-28T08:20:00+03:00',
-          status: 'accepted',
-          eventType: 'exit',
-          mode: 'cppk',
-          carrier: 'cppk',
-          zone: 'moscow_region',
-          lineId: 'd1',
-          cppkValidationType: 3
-        },
-        {
-          validationId: 'v3',
-          eventTime: '2026-04-28T09:00:00+03:00',
-          status: 'accepted',
-          eventType: 'entry',
-          mode: 'cppk',
-          carrier: 'cppk',
-          zone: 'moscow',
-          lineId: 'd1',
-          cppkValidationType: 4
-        }
-      ]
-    }
+    id: 'product-3',
+    title: 'Продукт №3',
+    section: 'Бальзамы',
+    image: 'https://tentorium.ru/media/storage/c39/a73/group-4270-1.png',
+    sourceUrl: 'https://tentorium.ru/ref/2065353/product/ekstrakt-propolisa-vodnyi-produkt-no-3-200-ml',
+    description: 'Водный экстракт прополиса для комплексной поддержки иммунитета и пищеварения.',
+    momBenefit: 'Понятная база, когда хочется одного универсального продукта для сезонной поддержки.',
+    familyUse: 'Подходит для объяснения через компонент: прополис связан с защитой, восстановлением и слизистыми.',
+    components: ['Прополис', 'Водная вытяжка'],
+    tags: ['Иммунитет', 'Пищеварение', 'Универсально']
+  },
+  {
+    id: 'apitok',
+    title: 'Апиток',
+    section: 'Медовые композиции',
+    image: 'https://tentorium.ru/media/storage/a7b/36b/apitok-300.webp',
+    sourceUrl: 'https://tentorium.ru/ref/2065353/product/apitok-300-g',
+    description: 'Медовая композиция с маточным молочком и прополисом в мягком питательном формате.',
+    momBenefit: 'Для периода усталости, когда хочется теплого продукта с медовой основой и ощущением заботы.',
+    familyUse: 'Можно представить как мягкий медовый формат для взрослых, где вкус помогает соблюдать привычный ритуал.',
+    components: ['Мед', 'Маточное молочко', 'Прополис'],
+    tags: ['Ресурс мамы', 'Баланс', 'Медовая композиция']
+  },
+  {
+    id: 'extra-lor',
+    title: 'Экстра-Лор',
+    section: 'Драже',
+    image: 'https://tentorium.ru/media/storage/fbc/e73/group-4258-1.png',
+    sourceUrl: 'https://tentorium.ru/ref/2065353/product/ekstra-lor-300-g',
+    description: 'Драже с медом, прополисом, пыльцой и растительными экстрактами для ЛОР-направления.',
+    momBenefit: 'Уместен в сезон простуд, когда важно быстро понять, что взять для горла и дыхательного комфорта.',
+    familyUse: 'Легко поставить в набор рядом с базовым драже и продуктом с прополисом.',
+    components: ['Мед', 'Прополис', 'Пыльца', 'Растительные экстракты'],
+    tags: ['ЛОР', 'Сезон простуд', 'Дыхание']
+  },
+  {
+    id: 'api-spira',
+    title: 'Апи-Спира',
+    section: 'Драже',
+    image: 'https://tentorium.ru/media/storage/a31/4ed/group-4261-1.png',
+    sourceUrl: 'https://tentorium.ru/ref/2065353/product/api-spira-300-g',
+    description: 'Сочетание пыльцы, меда, прополиса и спирулины для активного ежедневного рациона.',
+    momBenefit: 'Для тех дней, когда мама держит дом, работу, кружки и хочет добавить в рацион больше питательной поддержки.',
+    familyUse: 'Хорошо смотрится в разделе про активность, минералы и общий тонус.',
+    components: ['Пыльца', 'Мед', 'Прополис', 'Спирулина'],
+    tags: ['Активность', 'Рацион', 'Минералы']
   }
 ]
 
-function formatKopecks(value: number): string {
-  return `${(value / 100).toFixed(2)} ₽`
-}
-
-function getChargeTypeLabel(chargeType: string): string {
-  return chargeTypeLabels[chargeType] ?? chargeType
-}
-
-function getChargeReasonLabel(reason: string): string {
-  return chargeReasonLabels[reason] ?? reason
-}
-
-function getFareTypeLabel(fareType: string): string {
-  return fareTypeLabels[fareType] ?? fareType
-}
-
-function getWarningTitle(code: string): string {
-  return warningTranslations[code]?.title ?? code
-}
-
-function getWarningMessage(code: string, fallbackMessage: string): string {
-  return warningTranslations[code]?.message ?? fallbackMessage
-}
-
-function getEventTypeLabel(eventType: string): string {
-  return eventTypeLabels[eventType] ?? eventType
-}
-
-function getValidationStatusLabel(status: string): string {
-  return validationStatusLabels[status] ?? status
-}
-
-function getCarrierLabel(carrier: string): string {
-  return carrierLabels[carrier] ?? carrier
-}
-
-function getModeLabel(mode: string): string {
-  return modeLabels[mode] ?? mode
-}
-
-function getZoneLabel(zone: string): string {
-  return zoneLabels[zone] ?? zone
-}
-
-function getInitialTheme(): ThemeMode {
-  if (typeof window === 'undefined') {
-    return 'light'
+const scenarios: Scenario[] = [
+  {
+    id: 'season',
+    label: 'Сезон простуд',
+    title: 'Когда садик, школа и погода проверяют семью',
+    intro: 'Собираем полку без паники: базовая поддержка, комфорт для горла и понятный продукт с прополисом.',
+    productIds: ['extra-lor', 'product-3', 'tentorium-plus']
+  },
+  {
+    id: 'voice',
+    label: 'Горло и голос',
+    title: 'Когда мама много говорит, ведет дела и отвечает за всех',
+    intro: 'Фокус на слизистые, полость рта и ощущение мягкого обволакивания.',
+    productIds: ['apibalm-1', 'extra-lor', 'product-3']
+  },
+  {
+    id: 'energy',
+    label: 'Ресурс мамы',
+    title: 'Когда хочется сил, ясности и теплого ритуала для себя',
+    intro: 'Здесь продукты не про героизм, а про ежедневную заботу, питание и восстановление.',
+    productIds: ['apitok', 'api-spira', 'tentorium-plus']
+  },
+  {
+    id: 'tummy',
+    label: 'Питание и животик',
+    title: 'Когда хочется мягко поддержать рацион семьи',
+    intro: 'Выбираем продукты с прополисом, пыльцой и спирулиной для понятного ежедневного меню.',
+    productIds: ['product-3', 'api-spira', 'tentorium-plus']
+  },
+  {
+    id: 'beauty',
+    label: 'Красота и уход',
+    title: 'Когда забота о себе должна быть простой и красивой',
+    intro: 'Медовые композиции и апикомпоненты можно подать как уютный ритуал для мамы.',
+    productIds: ['apitok', 'api-spira', 'apibalm-1']
   }
+]
 
-  const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
-  if (storedTheme === 'light' || storedTheme === 'dark') {
-    return storedTheme
+const beeComponents = [
+  ['Мед', 'Мягкая питательная база, вкус и ощущение теплого домашнего ритуала.'],
+  ['Прополис', 'Компонент, который в каталоге чаще всего связан с защитой, слизистыми и восстановлением.'],
+  ['Пыльца', 'Источник аминокислот, ферментов и микроэлементов для ежедневной поддержки.'],
+  ['Маточное молочко', 'Ценный апикомпонент для продуктов тонуса, баланса и комплексной поддержки.']
+]
+
+const faq = [
+  {
+    question: 'Это лекарство или БАД?',
+    answer: 'Это не лекарство. Часть продуктов относится к пищевой продукции или БАД, поэтому на странице важно смотреть описание, состав, назначение и инструкцию конкретного продукта.'
+  },
+  {
+    question: 'Можно ли детям?',
+    answer: 'Можно рассматривать только те продукты, где это разрешено инструкцией по возрасту. Для ребенка лучше начинать с консультации специалиста, особенно если есть аллергии или хронические состояния.'
+  },
+  {
+    question: 'Можно беременным и при ГВ?',
+    answer: 'Во время беременности и грудного вскармливания любые продукты пчеловодства лучше согласовать с врачом. Это спокойнее и безопаснее, потому что реакция организма индивидуальна.'
+  },
+  {
+    question: 'Что делать при аллергии на мед?',
+    answer: 'При аллергии на мед, прополис, пыльцу или другие продукты пчеловодства такие средства не выбирают без консультации врача. Важно внимательно смотреть состав.'
+  },
+  {
+    question: 'Как выбрать первый продукт?',
+    answer: 'Проще идти от задачи: сезон простуд, горло, энергия мамы, питание или уход. Начинают с одного продукта, смотрят состав и инструкцию, а потом добавляют остальные при необходимости.'
   }
+]
 
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-}
-
-async function callFareApi(
-  request: FareCalculationRequest
-): Promise<{ ok: true; data: FareCalculationResult } | { ok: false; error: string }> {
-  const response = await fetch('/api/v1/fare/calculate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request)
-  })
-
-  const body = await response.text()
-  if (!response.ok) {
-    return { ok: false, error: body || `HTTP ${response.status}` }
+const infoTopics = [
+  {
+    title: 'Сезон простуд',
+    text: 'Поддержка рациона, горла и общего самочувствия в периоды, когда дети ходят в садик, школу и кружки.',
+    items: ['Прополис', 'Мед', 'Пыльца', 'ЛОР-направление']
+  },
+  {
+    title: 'Энергия и усталость',
+    text: 'Мягкие продукты для ежедневного ритма мамы: питание, тонус, восстановление после насыщенного дня.',
+    items: ['Медовые композиции', 'Маточное молочко', 'Пыльца']
+  },
+  {
+    title: 'Пищеварение и рацион',
+    text: 'Форматы, которые можно рассматривать как часть привычного питания и поддержки микрофлоры.',
+    items: ['Прополис', 'Спирулина', 'Пробиотики', 'Пищевые продукты']
+  },
+  {
+    title: 'Кожа, массаж, суставы',
+    text: 'Наружные средства с воском, прополисом, растительными экстрактами и маслами для ухода и массажа.',
+    items: ['Пчелиный воск', 'Прополис', 'Масла', 'Кремы']
   }
+]
 
-  try {
-    return { ok: true, data: JSON.parse(body) as FareCalculationResult }
-  } catch {
-    return { ok: false, error: 'API вернул невалидный JSON.' }
+const componentInfo = [
+  ['Мед', 'Питательная основа и мягкий вкус. Важно учитывать индивидуальную реакцию и возраст.'],
+  ['Прополис', 'Часто встречается в продуктах для сезонной поддержки, горла, слизистых и наружного ухода.'],
+  ['Пыльца', 'Источник природных микроэлементов и аминокислот, используется в продуктах для тонуса.'],
+  ['Маточное молочко', 'Компонент для продуктов, связанных с ресурсом, балансом и поддержкой рациона.'],
+  ['Пчелиный воск', 'Используется в драже, кремах, бальзамах и наружных средствах как природная основа.'],
+  ['Перга', 'Пчелиный продукт, который чаще связывают с питательной поддержкой и восстановлением.']
+]
+
+const sourceLinks = [
+  {
+    title: 'Активные компоненты',
+    text: 'Справочник компонентов Тенториум: мед, прополис, пыльца, перга, маточное молочко, воск и другие.',
+    url: 'https://tentorium.ru/infotorium/components/'
+  },
+  {
+    title: 'Лекция “Мед. Медовая коллекция Тенториум”',
+    text: 'Материал Академии Тенториум про виды меда, состав, хранение и полезные свойства.',
+    url: 'https://tentorium.ru/edu/course/zanyatie-1-myod-medovaya-kollektsiya-tentorium/'
   }
-}
+]
 
 export function App() {
-  const [scenarioId, setScenarioId] = useState(scenarios[0].id)
-  const [result, setResult] = useState<FareCalculationResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [apiStatus, setApiStatus] = useState<ApiStatus>('unknown')
-  const [onlyPaidCharges, setOnlyPaidCharges] = useState(false)
-  const [theme, setTheme] = useState<ThemeMode>(getInitialTheme)
-  const [feedItems, setFeedItems] = useState<ValidationFeedItem[]>([])
-  const [feedConnected, setFeedConnected] = useState(false)
-  const [feedLastError, setFeedLastError] = useState<string | null>(null)
-  const [feedLastMessageAt, setFeedLastMessageAt] = useState<string | null>(null)
-  const [feedPassengerKey, setFeedPassengerKey] = useState('')
-  const [feedTransportDate, setFeedTransportDate] = useState('')
-  const [feedCarrier, setFeedCarrier] = useState('')
-  const [feedLoading, setFeedLoading] = useState(false)
-  const requestSequenceRef = useRef(0)
+  const [page, setPage] = useState<Page>('home')
+  const [activeScenarioId, setActiveScenarioId] = useState(scenarios[0].id)
+  const [activeProductId, setActiveProductId] = useState(products[0].id)
+  const [openFaq, setOpenFaq] = useState(0)
+  const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([])
+  const [catalogQuery, setCatalogQuery] = useState('')
+  const [catalogSection, setCatalogSection] = useState('Все')
 
-  const scenario = useMemo(
-    () => scenarios.find((entry) => entry.id === scenarioId) ?? scenarios[0],
-    [scenarioId]
+  const activeScenario = useMemo(
+    () => scenarios.find((scenario) => scenario.id === activeScenarioId) ?? scenarios[0],
+    [activeScenarioId]
   )
+  const recommendedProducts = useMemo(
+    () => products.filter((product) => activeScenario.productIds.includes(product.id)),
+    [activeScenario]
+  )
+  const activeProduct = products.find((product) => product.id === activeProductId) ?? products[0]
+  const catalogSections = useMemo(
+    () => ['Все', ...Array.from(new Set(catalogProducts.map((product) => product.section))).sort()],
+    [catalogProducts]
+  )
+  const visibleCatalogProducts = useMemo(() => {
+    const query = catalogQuery.trim().toLowerCase()
 
-  const visibleCharges = useMemo(() => {
-    if (!result) {
-      return []
-    }
-    return onlyPaidCharges
-      ? result.charges.filter((charge) => charge.amountKopecks > 0)
-      : result.charges
-  }, [onlyPaidCharges, result])
+    return catalogProducts.filter((product) => {
+      const matchesSection = catalogSection === 'Все' || product.section === catalogSection
+      const searchText = [
+        product.title,
+        product.section,
+        product.description,
+        product.forWhat,
+        ...product.components,
+        ...product.benefits
+      ].join(' ').toLowerCase()
 
-  const checkApi = async () => {
-    try {
-      const response = await fetch('/health')
-      setApiStatus(response.ok ? 'up' : 'down')
-    } catch {
-      setApiStatus('down')
-    }
-  }
-
-  const calculateFare = async (request: FareCalculationRequest) => {
-    const requestSequence = ++requestSequenceRef.current
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const response = await callFareApi(request)
-      if (requestSequence !== requestSequenceRef.current) {
-        return
-      }
-
-      if (!response.ok) {
-        setResult(null)
-        setError(response.error)
-        return
-      }
-      setResult(response.data)
-    } catch (unknownError) {
-      if (requestSequence !== requestSequenceRef.current) {
-        return
-      }
-
-      const message = unknownError instanceof Error ? unknownError.message : 'Неизвестная ошибка'
-      setResult(null)
-      setError(message)
-    } finally {
-      if (requestSequence === requestSequenceRef.current) {
-        setIsLoading(false)
-      }
-    }
-  }
+      return matchesSection && (!query || searchText.includes(query))
+    })
+  }, [catalogProducts, catalogQuery, catalogSection])
 
   useEffect(() => {
-    void calculateFare(scenario.request)
-  }, [scenarioId])
+    let isMounted = true
 
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-    window.localStorage.setItem(THEME_STORAGE_KEY, theme)
-  }, [theme])
-
-  useEffect(() => {
-    let active = true
-
-    const loadFeed = async () => {
-      if (!active) {
-        return
-      }
-      setFeedLoading(true)
-
-      try {
-        const params = new URLSearchParams()
-        if (feedPassengerKey.trim()) {
-          params.set('passengerKey', feedPassengerKey.trim())
+    fetch('/tentorium-catalog.json')
+      .then((response) => response.json())
+      .then((body: { products?: CatalogProduct[] }) => {
+        if (isMounted) {
+          setCatalogProducts(body.products ?? [])
         }
-        if (feedTransportDate.trim()) {
-          params.set('transportDate', feedTransportDate.trim())
+      })
+      .catch(() => {
+        if (isMounted) {
+          setCatalogProducts([])
         }
-        if (feedCarrier.trim()) {
-          params.set('carrier', feedCarrier.trim())
-        }
-        params.set('limit', '50')
-
-        const response = await fetch(`/api/v1/kafka/validations?${params.toString()}`)
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`)
-        }
-
-        const body = (await response.json()) as ValidationFeedResponse
-        if (!active) {
-          return
-        }
-        setFeedItems(body.items)
-        setFeedConnected(body.connected)
-        setFeedLastError(body.lastError ?? null)
-        setFeedLastMessageAt(body.lastMessageAt ?? null)
-      } catch (unknownError) {
-        if (!active) {
-          return
-        }
-        const message = unknownError instanceof Error ? unknownError.message : 'Ошибка загрузки feed'
-        setFeedConnected(false)
-        setFeedLastError(message)
-      } finally {
-        if (active) {
-          setFeedLoading(false)
-        }
-      }
-    }
-
-    void loadFeed()
-    const timer = window.setInterval(() => {
-      void loadFeed()
-    }, 4000)
+      })
 
     return () => {
-      active = false
-      window.clearInterval(timer)
+      isMounted = false
     }
-  }, [feedPassengerKey, feedTransportDate, feedCarrier])
+  }, [])
 
-  return (
-    <div className="layout clean-layout">
-      <main className="content single-column">
-        <section className="panel">
-          <div className="panel-header">
-            <div className="panel-header-row">
-              <h2>МТТЕХ - расчет поездок</h2>
-              <button
-                className="action-button secondary theme-toggle"
-                onClick={() => setTheme((current) => (current === 'light' ? 'dark' : 'light'))}
-              >
-                {theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
-              </button>
-            </div>
+  const showHomeSection = (sectionId: string) => {
+    setPage('home')
+    window.requestAnimationFrame(() => {
+      const target = document.getElementById(sectionId)
+      if (!target) {
+        return
+      }
+
+      target.scrollIntoView({ behavior: 'smooth' })
+    })
+  }
+
+  const brandLogo = (
+    <span className="brand-copy">
+      <span className="brand-title">Пчелиный Дар</span>
+      <span className="brand-subtitle">натуральная забота</span>
+    </span>
+  )
+
+  if (page === 'catalog') {
+    return (
+      <main className="mom-page">
+        <header className="site-header">
+          <button className="brand brand-button" type="button" onClick={() => setPage('home')} aria-label="На главную">
+            {brandLogo}
+          </button>
+          <nav className="nav-links" aria-label="Разделы сайта">
+            <button type="button" onClick={() => showHomeSection('choose')}>Подбор</button>
+            <button className="is-active" type="button" onClick={() => setPage('catalog')}>Каталог</button>
+            <button type="button" onClick={() => setPage('info')}>Полезная информация</button>
+            <button type="button" onClick={() => showHomeSection('faq')}>Вопросы</button>
+          </nav>
+        </header>
+
+        <section className="full-catalog-page">
+          <div className="catalog-hero">
+            <p className="eyebrow">Полный каталог</p>
+            <h1>Каталог Пчелиный Дар</h1>
+            <p>
+              Здесь собраны продукты с названием, направлением, кратким описанием и ссылкой
+              на оригинальную страницу товара.
+            </p>
           </div>
 
-          <div className="top-controls">
-            <div className="scenario-row">
-              {scenarios.map((entry) => (
-                <button
-                  key={entry.id}
-                  className={entry.id === scenarioId ? 'scenario-button active' : 'scenario-button'}
-                  onClick={() => setScenarioId(entry.id)}
-                >
-                  {entry.title}
-                </button>
-              ))}
-            </div>
-
-            <div className="button-row">
-              <button className="action-button secondary" onClick={checkApi}>
-                Проверить API
-              </button>
-            </div>
-
-            <div className="status-inline">
-              API:{' '}
-              {apiStatus === 'unknown' && 'не проверен'}
-              {apiStatus === 'up' && 'доступен'}
-              {apiStatus === 'down' && 'недоступен'}
-            </div>
-          </div>
-
-          <article className="card feed-card">
-            <div className="result-controls">
-              <h3>Лента событий</h3>
-            </div>
-            <div className="feed-filters">
+          <div className="catalog-toolbar">
+            <label>
+              <span>Поиск</span>
               <input
-                className="feed-input"
-                placeholder="Ключ пассажира"
-                value={feedPassengerKey}
-                onChange={(event) => setFeedPassengerKey(event.target.value)}
+                type="search"
+                value={catalogQuery}
+                onChange={(event) => setCatalogQuery(event.target.value)}
+                placeholder="Название, компонент или задача"
               />
-              <input
-                className="feed-input"
-                placeholder="Дата перевозки (ГГГГ-ММ-ДД)"
-                value={feedTransportDate}
-                onChange={(event) => setFeedTransportDate(event.target.value)}
-              />
-              <select
-                className="feed-input"
-                value={feedCarrier}
-                onChange={(event) => setFeedCarrier(event.target.value)}
-              >
-                <option value="">Все перевозчики</option>
-                <option value="metro">Метро</option>
-                <option value="mck">МЦК</option>
-                <option value="mgt">МГТ</option>
-                <option value="cppk">ЦППК</option>
-                <option value="mtppk">МТППК</option>
+            </label>
+            <label>
+              <span>Раздел</span>
+              <select value={catalogSection} onChange={(event) => setCatalogSection(event.target.value)}>
+                {catalogSections.map((section) => (
+                  <option key={section} value={section}>{section}</option>
+                ))}
               </select>
+            </label>
+          </div>
+
+          <section className="support-card">
+            <div>
+              <p className="eyebrow">Перед покупкой</p>
+              <h2>Можно уточнить дозировки и подбор</h2>
+              <p>
+                Напишите в VK, если нужно подобрать продукт по возрасту, ситуации, ограничениям
+                или задать вопрос по применению.
+              </p>
             </div>
-            <div className="feed-status">
-              Последнее событие: {feedLastMessageAt ?? 'нет'} {feedLastError ? `| Ошибка: ${feedLastError}` : ''}
-            </div>
-            <div className="feed-table-wrap">
-              <table className="charges-table">
-                <thead>
-                  <tr>
-                    <th>Время</th>
-                    <th>Пассажир</th>
-                    <th>Перевозчик</th>
-                    <th>Режим</th>
-                    <th>Тип / статус</th>
-                    <th>Зона</th>
-                    <th>ID валидации</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {feedItems.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="empty-feed-cell">
-                        Событий пока нет (или фильтр слишком узкий).
-                      </td>
-                    </tr>
-                  ) : (
-                    feedItems.map((item) => (
-                      <tr key={`${item.topic}-${item.partition}-${item.offset}-${item.validationId}`}>
-                        <td>{item.eventTime}</td>
-                        <td>{item.passengerKey}</td>
-                        <td>{getCarrierLabel(item.carrier)}</td>
-                        <td>{getModeLabel(item.mode)}</td>
-                        <td>
-                          {getEventTypeLabel(item.eventType)} / {getValidationStatusLabel(item.status)}
-                        </td>
-                        <td>{getZoneLabel(item.zone)}</td>
-                        <td>{item.validationId}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </article>
+            <a className="support-link" href="https://vk.ru/im/convo/68327009?tab=all" target="_blank" rel="noreferrer">
+              Написать в VK
+            </a>
+          </section>
 
-          {error ? <div className="error-banner">{error}</div> : null}
-
-          {result ? (
-            <>
-              <div className="metrics-grid compact-grid">
-                <article className="metric-card">
-                  <span className="metric-label">Итого</span>
-                  <strong>{formatKopecks(result.totalAmountKopecks)}</strong>
-                </article>
-                <article className="metric-card">
-                  <span className="metric-label">Поездки</span>
-                  <strong>{result.trips.length}</strong>
-                </article>
-                <article className="metric-card">
-                  <span className="metric-label">Начисления</span>
-                  <strong>{result.charges.length}</strong>
-                </article>
-                <article className="metric-card">
-                  <span className="metric-label">Предупреждения</span>
-                  <strong>{result.warnings.length}</strong>
-                </article>
-              </div>
-
-              <div className="split-grid">
-                <article className="card">
-                  <h3>Поездки</h3>
-                  <ul className="timeline">
-                    {result.trips.map((trip) => (
-                      <li key={trip.tripId}>
-                        <div className="timeline-top">
-                          <strong>{getFareTypeLabel(trip.fareType)}</strong>
-                          <span>{formatKopecks(trip.amountKopecks)}</span>
-                        </div>
-                        <div className="timeline-meta">
-                          {trip.windowStart} → {trip.windowEnd}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-
-                <article className="card">
-                  <h3>Предупреждения</h3>
-                  {result.warnings.length === 0 ? (
-                    <p className="empty-text">Предупреждений нет.</p>
-                  ) : (
-                    <ul className="warnings-list">
-                      {result.warnings.map((warning) => (
-                        <li key={`${warning.code}-${warning.validationId ?? ''}`}>
-                          <strong>{getWarningTitle(warning.code)}</strong>
-                          <p>{getWarningMessage(warning.code, warning.message)}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </article>
-              </div>
-
-              <article className="card">
-                <div className="result-controls">
-                  <h3>Начисления</h3>
-                  <label className="check-input">
-                    <input
-                      type="checkbox"
-                      checked={onlyPaidCharges}
-                      onChange={(event) => setOnlyPaidCharges(event.target.checked)}
-                    />
-                    Только платные
-                  </label>
+          <div className="full-catalog-grid">
+            {visibleCatalogProducts.map((product) => (
+              <article className="catalog-product-card" key={product.sourceUrl}>
+                <div className="catalog-product-image">
+                  {product.image ? <img src={product.image} alt={product.title} loading="lazy" /> : <span>Нет фото</span>}
                 </div>
-                <table className="charges-table">
-                  <thead>
-                    <tr>
-                      <th>Тип</th>
-                      <th>Причина</th>
-                      <th>ID</th>
-                      <th>Сумма</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleCharges.map((charge) => (
-                      <tr key={charge.chargeId}>
-                        <td>{getChargeTypeLabel(charge.chargeType)}</td>
-                        <td>{getChargeReasonLabel(charge.reason)}</td>
-                        <td>{charge.validationId}</td>
-                        <td>{formatKopecks(charge.amountKopecks)}</td>
-                      </tr>
+                <div className="catalog-product-copy">
+                  <span className="section-pill">{product.section}</span>
+                  <h2>{product.title}</h2>
+                  <p>{product.description}</p>
+                  {product.forWhat ? (
+                    <>
+                      <strong className="product-purpose">Направление:</strong>
+                      <p>{product.forWhat}</p>
+                    </>
+                  ) : null}
+                  <div className="tag-row">
+                    {product.components.map((component) => (
+                      <span key={component}>{component}</span>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                  <a className="catalog-link" href={product.sourceUrl} target="_blank" rel="noreferrer">
+                    Купить
+                  </a>
+                </div>
               </article>
-            </>
-          ) : (
-            <div className="placeholder">
-              <p>{isLoading ? 'Считаем тариф...' : 'Выбери сценарий для расчета.'}</p>
-            </div>
-          )}
+            ))}
+          </div>
         </section>
       </main>
-    </div>
+    )
+  }
+
+  if (page === 'info') {
+    return (
+      <main className="mom-page">
+        <header className="site-header">
+          <button className="brand brand-button" type="button" onClick={() => setPage('home')} aria-label="На главную">
+            {brandLogo}
+          </button>
+          <nav className="nav-links" aria-label="Разделы сайта">
+            <button type="button" onClick={() => showHomeSection('choose')}>Подбор</button>
+            <button type="button" onClick={() => setPage('catalog')}>Каталог</button>
+            <button className="is-active" type="button" onClick={() => setPage('info')}>Полезная информация</button>
+            <button type="button" onClick={() => showHomeSection('faq')}>Вопросы</button>
+          </nav>
+        </header>
+
+        <section className="info-page">
+          <div className="info-hero">
+            <p className="eyebrow">Справочник для мам</p>
+            <h1>Полезная информация</h1>
+            <p>
+              Коротко и понятно: какие компоненты встречаются в продуктах пчеловодства, когда их обычно
+              рассматривают и на что обратить внимание перед покупкой.
+            </p>
+          </div>
+
+          <section className="info-warning">
+            <h2>Важно</h2>
+            <p>
+              Продукты пчеловодства не заменяют лечение и консультацию врача. При аллергии, беременности,
+              грудном вскармливании, хронических заболеваниях и выборе продукта для ребенка нужно смотреть
+              инструкцию и советоваться со специалистом.
+            </p>
+          </section>
+
+          <section className="info-section">
+            <div className="section-heading">
+              <p className="eyebrow">Когда может пригодиться</p>
+              <h2>Подбор по жизненным ситуациям</h2>
+            </div>
+            <div className="info-topic-grid">
+              {infoTopics.map((topic) => (
+                <article key={topic.title}>
+                  <h3>{topic.title}</h3>
+                  <p>{topic.text}</p>
+                  <div className="tag-row">
+                    {topic.items.map((item) => (
+                      <span key={item}>{item}</span>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="info-section">
+            <div className="section-heading">
+              <p className="eyebrow">Компоненты</p>
+              <h2>Что чаще всего встречается в составе</h2>
+            </div>
+            <div className="component-info-grid">
+              {componentInfo.map(([name, text]) => (
+                <article key={name}>
+                  <span>{name.slice(0, 1)}</span>
+                  <h3>{name}</h3>
+                  <p>{text}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="info-section">
+            <div className="section-heading">
+              <p className="eyebrow">Детям и мамам</p>
+              <h2>Как говорить об этом безопасно</h2>
+            </div>
+            <div className="safety-list">
+              <article>
+                <h3>Детям</h3>
+                <p>Выбирать только продукты, где возраст разрешен инструкцией. Начинать осторожно и учитывать аллергию.</p>
+              </article>
+              <article>
+                <h3>Беременность и ГВ</h3>
+                <p>Не подбирать самостоятельно. Любые продукты пчеловодства лучше согласовать с врачом.</p>
+              </article>
+              <article>
+                <h3>Аллергия</h3>
+                <p>Мед, прополис, пыльца и другие апикомпоненты могут вызывать индивидуальную реакцию.</p>
+              </article>
+            </div>
+          </section>
+
+          <section className="info-section">
+            <div className="section-heading">
+              <p className="eyebrow">Источники</p>
+              <h2>Где почитать подробнее</h2>
+            </div>
+            <div className="source-grid">
+              {sourceLinks.map((source) => (
+                <a key={source.url} href={source.url} target="_blank" rel="noreferrer">
+                  <h3>{source.title}</h3>
+                  <p>{source.text}</p>
+                  <span>Открыть материал</span>
+                </a>
+              ))}
+            </div>
+          </section>
+        </section>
+      </main>
+    )
+  }
+
+  return (
+    <main className="mom-page">
+      <header className="site-header">
+        <button className="brand brand-button" type="button" onClick={() => showHomeSection('top')} aria-label="На главную">
+          {brandLogo}
+        </button>
+        <nav className="nav-links" aria-label="Разделы сайта">
+          <button type="button" onClick={() => showHomeSection('choose')}>Подбор</button>
+          <button type="button" onClick={() => setPage('catalog')}>Каталог</button>
+          <button type="button" onClick={() => setPage('info')}>Полезная информация</button>
+          <button type="button" onClick={() => showHomeSection('faq')}>Вопросы</button>
+        </nav>
+      </header>
+
+      <section className="hero" id="top">
+        <div className="hero-copy">
+          <p className="eyebrow">Пчелиный Дар</p>
+          <h1>Пчелиный Дар для мам и всей семьи</h1>
+          <p>
+            Понятные продукты пчеловодства, польза простым языком и интерактивный подбор
+            под ситуацию дома.
+          </p>
+          <div className="hero-actions">
+            <a href="#choose" className="primary-link">Подобрать набор</a>
+            <a href="#catalog" className="secondary-link">Смотреть продукты</a>
+          </div>
+        </div>
+        <div className="hero-showcase" aria-label="Пример продукта">
+          <img src="https://tentorium.ru/media/storage/f52/130/group-4259-1.png" alt="Тенториум Плюс" />
+        </div>
+      </section>
+
+      <section className="trust-strip" aria-label="Направления заботы">
+        <article>
+          <span>01</span>
+          <h2>Сезон</h2>
+          <p>Что держать дома, когда дети ходят в садик, школу и кружки.</p>
+        </article>
+        <article>
+          <span>02</span>
+          <h2>Горло</h2>
+          <p>ЛОР-направление, голос, слизистые и комфорт полости рта.</p>
+        </article>
+        <article>
+          <span>03</span>
+          <h2>Ресурс</h2>
+          <p>Поддержка мамы, питание, тонус и спокойный ежедневный ритуал.</p>
+        </article>
+        <article>
+          <span>04</span>
+          <h2>Уход</h2>
+          <p>Красивые медовые композиции и компоненты с понятной пользой.</p>
+        </article>
+      </section>
+
+      <section className="support-card">
+        <div>
+          <p className="eyebrow">Поддержка</p>
+          <h2>Спросить перед покупкой</h2>
+          <p>
+            Можно написать в VK и уточнить дозировки, возраст, состав, ограничения или подобрать
+            продукт под вашу ситуацию.
+          </p>
+        </div>
+        <a className="support-link" href="https://vk.ru/im/convo/68327009?tab=all" target="_blank" rel="noreferrer">
+          Написать в VK
+        </a>
+      </section>
+
+      <section className="chooser-section" id="choose">
+        <div className="section-heading">
+          <p className="eyebrow">Интерактивный подбор</p>
+          <h2>Выберите, что сейчас важнее для семьи</h2>
+        </div>
+
+        <div className="chooser-grid">
+          <div className="scenario-tabs" role="tablist" aria-label="Ситуации">
+            {scenarios.map((scenario) => (
+              <button
+                className={scenario.id === activeScenarioId ? 'scenario-button is-active' : 'scenario-button'}
+                data-testid={`scenario-${scenario.id}`}
+                key={scenario.id}
+                type="button"
+                role="tab"
+                aria-selected={scenario.id === activeScenarioId}
+                onClick={() => {
+                  setActiveScenarioId(scenario.id)
+                  setActiveProductId(scenario.productIds[0])
+                }}
+              >
+                {scenario.label}
+              </button>
+            ))}
+          </div>
+
+          <article className="scenario-panel">
+            <span className="panel-number">0{scenarios.findIndex((item) => item.id === activeScenario.id) + 1}</span>
+            <h3>{activeScenario.title}</h3>
+            <p>{activeScenario.intro}</p>
+          </article>
+
+          <div className="recommended-box" aria-label="Рекомендованные продукты">
+            <p className="box-title">Подойдут в первую очередь</p>
+            {recommendedProducts.map((product) => (
+              <button
+                className={product.id === activeProductId ? 'recommendation is-active' : 'recommendation'}
+                data-testid={`recommendation-${product.id}`}
+                key={product.id}
+                type="button"
+                onClick={() => setActiveProductId(product.id)}
+              >
+                <img src={product.image} alt="" />
+                <span>
+                  <b>{product.title}</b>
+                  <small>{product.section}</small>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="catalog-section" id="catalog">
+        <div className="section-heading">
+          <p className="eyebrow">Подбор продуктов</p>
+          <h2>Продукты с понятным объяснением “для чего”</h2>
+        </div>
+
+        <div className="catalog-layout">
+          <div className="product-grid">
+            {products.map((product) => (
+              <button
+                className={product.id === activeProductId ? 'product-card is-active' : 'product-card'}
+                data-testid={`product-${product.id}`}
+                key={product.id}
+                type="button"
+                onClick={() => setActiveProductId(product.id)}
+              >
+                <span className="section-pill">{product.section}</span>
+                <h3>{product.title}</h3>
+                <div className="product-image" data-product-id={product.id}>
+                  <img src={product.image} alt={product.title} />
+                </div>
+                <strong className="product-purpose">Для чего</strong>
+                <p>{product.description}</p>
+              </button>
+            ))}
+          </div>
+
+          <aside className="detail-panel" aria-live="polite">
+            <p className="eyebrow">Детали продукта</p>
+            <h3>{activeProduct.title}</h3>
+            <div className="detail-image" data-product-id={activeProduct.id}>
+              <img src={activeProduct.image} alt={activeProduct.title} />
+            </div>
+            <strong className="product-purpose">Для чего</strong>
+            <p>{activeProduct.description}</p>
+            <div>
+              <h4>Для мамы</h4>
+              <p>{activeProduct.momBenefit}</p>
+            </div>
+            <div>
+              <h4>Для семьи</h4>
+              <p>{activeProduct.familyUse}</p>
+            </div>
+            <div className="tag-row">
+              {activeProduct.components.map((component) => (
+                <span key={component}>{component}</span>
+              ))}
+            </div>
+            <div className="benefit-row">
+              {activeProduct.tags.map((tag) => (
+                <span key={tag}>{tag}</span>
+              ))}
+            </div>
+            <a className="catalog-link detail-buy-link" href={activeProduct.sourceUrl} target="_blank" rel="noreferrer">
+              Купить
+            </a>
+          </aside>
+        </div>
+      </section>
+
+      <section className="components-section">
+        <div className="section-heading">
+          <p className="eyebrow">Польза компонентов</p>
+          <h2>Объясняем состав без сложных терминов</h2>
+        </div>
+        <div className="component-board">
+          {beeComponents.map(([name, text]) => (
+            <article key={name}>
+              <span>{name.slice(0, 1)}</span>
+              <h3>{name}</h3>
+              <p>{text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="faq-section" id="faq">
+        <div className="section-heading">
+          <p className="eyebrow">Для спокойной покупки</p>
+          <h2>Вопросы, которые обычно задают мамы</h2>
+        </div>
+        <div className="faq-list">
+          {faq.map((item, index) => (
+            <article className="faq-item" key={item.question}>
+              <button
+                data-testid={`faq-${index}`}
+                type="button"
+                aria-expanded={openFaq === index}
+                onClick={() => setOpenFaq(openFaq === index ? -1 : index)}
+              >
+                <span>{item.question}</span>
+                <b>{openFaq === index ? '−' : '+'}</b>
+              </button>
+              {openFaq === index && <p>{item.answer}</p>}
+            </article>
+          ))}
+        </div>
+      </section>
+
+    </main>
   )
 }
